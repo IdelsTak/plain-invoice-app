@@ -34,7 +34,7 @@ All work must start in GitHub Project `#27`:
 ## Commit message standard
 Use Conventional Commit style:
 - `<type>(<scope>): <imperative summary>`
-- preferred max subject length: 72 characters
+- preferred max subject length: 49 characters
 - add a body for non-trivial changes explaining why
 
 Examples:
