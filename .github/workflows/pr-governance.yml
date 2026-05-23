@@ -1,0 +1,18 @@
+name: PR Governance
+
+on:
+  pull_request:
+    types: [opened, edited, synchronize, reopened]
+
+jobs:
+  require-linked-issue:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ensure PR body links an issue with closing keyword
+        env:
+          PR_BODY: ${{ github.event.pull_request.body }}
+        run: |
+          echo "$PR_BODY" | grep -Eiq '(close|closes|closed|fix|fixes|fixed|resolve|resolves|resolved)\s+#\d+' || {
+            echo "PR body must contain a closing keyword with issue number, e.g. 'Closes #123'"
+            exit 1
+          }

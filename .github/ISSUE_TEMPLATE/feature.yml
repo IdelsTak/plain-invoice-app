@@ -1,0 +1,34 @@
+name: Feature Task
+description: Project-first implementation task
+title: "feat: "
+labels: ["type:feature"]
+body:
+  - type: input
+    id: project_item
+    attributes:
+      label: Project item URL
+      description: Link to the GitHub Project item in #27
+      placeholder: https://github.com/users/IdelsTak/projects/27
+    validations:
+      required: true
+  - type: input
+    id: milestone_bucket
+    attributes:
+      label: Milestone bucket
+      description: M1 Domain Core, M2 Persistence, M3 Rendering Export, or M4 UI Print
+    validations:
+      required: true
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What problem does this task solve?
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance criteria
+      description: Clear, testable completion criteria
+    validations:
+      required: true

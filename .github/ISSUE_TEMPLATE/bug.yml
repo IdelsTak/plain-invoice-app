@@ -1,0 +1,31 @@
+name: Bug Task
+description: Defect tracked from Project-first workflow
+title: "fix: "
+labels: ["type:bug"]
+body:
+  - type: input
+    id: project_item
+    attributes:
+      label: Project item URL
+      description: Link to the GitHub Project item in #27
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Reproduction
+      description: Steps to reproduce the issue
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance criteria
+    validations:
+      required: true

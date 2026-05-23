@@ -1,0 +1,6 @@
+# Default ownership
+* @IdelsTak
+
+# Workflow and policy files
+.github/* @IdelsTak
+.github/workflows/* @IdelsTak
