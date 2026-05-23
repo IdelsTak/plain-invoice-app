@@ -26,8 +26,8 @@ All work must start in GitHub Project `#27`:
 - Behavior changes must include tests
 
 ## Pull request rules
-- PR must link issue with closing keyword, e.g. `Closes #123`
-- PR must include test evidence
+- PR body must contain only `## What changed` with a concise description of what the PR commits changed
+- Do not include extra PR-body sections beyond `## What changed`
 - PR should contain one logical change set
 
 
@@ -70,3 +70,14 @@ Issue bodies must contain:
 Do not use dedicated `## Problem` or `## Scope` headings.
 Use repository issue templates or match the same structure exactly.
 
+
+
+## Feature PR metadata gate (mandatory)
+Before requesting review on a feature PR:
+1. Set assignee
+2. Add labels (`type:*`, `area:*`)
+3. Set milestone matching Project milestone bucket
+4. Link PR to Project `plain-invoice Project` (`#27`)
+5. Set Project PR-item fields: `Status`, `Priority`, `Area`, `Type`, `Milestone Bucket`, `Effort`, and `Target Date` for `P0`
+
+PRs are not review-ready until this gate is complete.
