@@ -1,8 +1,7 @@
 package com.plaininvoice.invoice.pricing;
 
-import java.math.BigDecimal;
-import java.math.RoundingMode;
-import java.util.Objects;
+import java.math.*;
+import java.util.*;
 
 public record Money(BigDecimal amount, CurrencyCode currencyCode) {
   public Money {

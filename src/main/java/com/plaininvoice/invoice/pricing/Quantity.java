@@ -1,7 +1,7 @@
 package com.plaininvoice.invoice.pricing;
 
-import java.math.BigDecimal;
-import java.util.Objects;
+import java.math.*;
+import java.util.*;
 
 public record Quantity(BigDecimal value) {
   public Quantity {
