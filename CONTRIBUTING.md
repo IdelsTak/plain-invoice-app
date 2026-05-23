@@ -12,8 +12,8 @@ All work must start in GitHub Project `#27`:
 6. Implement and open PR linked to issue
 
 ## Development setup
-- Java 21+
-- Maven 3.9+
+- Java 26+
+- Maven 3.9.14
 
 ## Commands
 - Unit tests: `mvn -B -ntp test`
@@ -34,7 +34,7 @@ All work must start in GitHub Project `#27`:
 ## Commit message standard
 Use Conventional Commit style:
 - `<type>(<scope>): <imperative summary>`
-- preferred max subject length: 49 characters
+- required max subject length: 48 characters (<49)
 - add a body for non-trivial changes explaining why
 
 Examples:

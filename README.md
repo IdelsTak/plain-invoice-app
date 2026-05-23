@@ -41,8 +41,8 @@ The repository currently contains a monolithic Maven + JavaFX scaffold, initial 
 
 ## Quick start
 Requirements:
-- Java 21+
-- Maven 3.9+
+- Java 26+
+- Maven 3.9.14
 
 Run tests:
 ```bash
