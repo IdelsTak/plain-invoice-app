@@ -40,3 +40,33 @@ Use Conventional Commit style:
 Examples:
 - `feat(invoice): add deterministic tax rounding policy`
 - `fix(ui): prevent empty invoice save action`
+
+
+## Mandatory pre-coding issue gate
+Before starting implementation for any issue:
+1. Set assignee
+2. Link issue to Project `#27`
+3. Ensure Project fields are complete: `Status`, `Priority`, `Area`, `Type`, `Milestone Bucket`, `Effort`, `Target Date` (for `P0`)
+4. Ensure repository milestone is assigned and matches Project milestone bucket
+
+Do not start coding until this metadata gate is complete.
+
+
+## Effort scale
+Use Fibonacci-style effort estimates in Project #27:
+- `1` trivial
+- `2` very small
+- `3` small
+- `5` medium
+- `8` large
+- `13` very large (split recommended)
+
+
+## Issue body format (mandatory)
+Issue bodies must contain:
+- concise prose description of problem and scope
+- `## Acceptance Criteria` section with checkboxes
+
+Do not use dedicated `## Problem` or `## Scope` headings.
+Use repository issue templates or match the same structure exactly.
+

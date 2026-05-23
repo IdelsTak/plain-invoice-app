@@ -1,0 +1,29 @@
+name: Issue Governance
+
+on:
+  issues:
+    types: [opened, edited, reopened]
+
+jobs:
+  validate-issue-body:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Validate issue body format
+        env:
+          BODY: ${{ github.event.issue.body }}
+        run: |
+          set -euo pipefail
+
+          # Require acceptance criteria section
+          echo "$BODY" | grep -Fq "## Acceptance Criteria" || {
+            echo "Issue body missing required section: ## Acceptance Criteria"
+            exit 1
+          }
+
+          # Require some prose before acceptance criteria
+          prose="$(echo "$BODY" | awk '/^## Acceptance Criteria/{exit} {print}')"
+          chars=$(echo "$prose" | tr -d '\n[:space:]' | wc -c)
+          if [ "$chars" -lt 60 ]; then
+            echo "Issue body must include concise prose description before acceptance criteria"
+            exit 1
+          fi
