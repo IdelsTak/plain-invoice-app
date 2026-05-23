@@ -29,3 +29,14 @@ All work must start in GitHub Project `#27`:
 - PR must link issue with closing keyword, e.g. `Closes #123`
 - PR must include test evidence
 - PR should contain one logical change set
+
+
+## Commit message standard
+Use Conventional Commit style:
+- `<type>(<scope>): <imperative summary>`
+- preferred max subject length: 72 characters
+- add a body for non-trivial changes explaining why
+
+Examples:
+- `feat(invoice): add deterministic tax rounding policy`
+- `fix(ui): prevent empty invoice save action`
