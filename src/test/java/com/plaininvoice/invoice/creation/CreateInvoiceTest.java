@@ -4,6 +4,7 @@ import com.plaininvoice.invoice.draft.*;
 import com.plaininvoice.invoice.lifecycle.*;
 import com.plaininvoice.invoice.numbering.*;
 import com.plaininvoice.invoice.pricing.*;
+import com.plaininvoice.invoice.validation.*;
 import java.math.*;
 import java.time.*;
 import java.util.*;
@@ -31,7 +32,7 @@ final class CreateInvoiceTest {
   void rejectsDuplicateNumberOnCreate() {
     var useCase = new CreateInvoice(new MemoryInvoiceNumberUniqueness(new HashSet<>()));
     useCase.execute(validRequest("CORE", 1));
-    assertThrows(IllegalArgumentException.class, () -> useCase.execute(validRequest("CORE", 1)));
+    assertThrows(ValidationFault.class, () -> useCase.execute(validRequest("CORE", 1)));
   }
 
   private CreateInvoiceRequest validRequest(String series, long sequence) {
