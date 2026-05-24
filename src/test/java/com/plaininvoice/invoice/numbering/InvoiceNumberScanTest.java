@@ -19,4 +19,23 @@ final class InvoiceNumberScanTest {
     var scan = new InvoiceNumberScan();
     assertThrows(IllegalArgumentException.class, () -> scan.parse("bad_format"));
   }
+
+  @Test
+  void rejectsNullValue() {
+    var scan = new InvoiceNumberScan();
+    assertThrows(NullPointerException.class, () -> scan.parse(null));
+  }
+
+  @Test
+  void parsesWithBoundarySeriesLength() {
+    var scan = new InvoiceNumberScan();
+    var parsed = scan.parse("AB12CD34EF56-1");
+    assertThat(parsed, is(new InvoiceNumber("AB12CD34EF56", 1)));
+  }
+
+  @Test
+  void rejectsSequenceLongerThanTenDigits() {
+    var scan = new InvoiceNumberScan();
+    assertThrows(IllegalArgumentException.class, () -> scan.parse("CORE-12345678901"));
+  }
 }
