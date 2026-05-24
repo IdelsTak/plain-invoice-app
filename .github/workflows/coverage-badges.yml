@@ -8,6 +8,7 @@ on:
 
 permissions:
   contents: write
+  pull-requests: write
 
 jobs:
   badges:
@@ -28,8 +29,15 @@ jobs:
         with:
           generate-branches-badge: true
 
-      - name: Commit updated badges
-        uses: stefanzweifel/git-auto-commit-action@v5
+      - name: Create badge update pull request
+        uses: peter-evans/create-pull-request@v7
         with:
-          commit_message: "ci: refresh coverage badges"
-          file_pattern: .github/badges/*.svg
+          commit-message: "ci: refresh coverage badges"
+          branch: ci/coverage-badges
+          title: "ci: refresh coverage badges"
+          body: |
+            ## What changed
+            - refreshed JaCoCo coverage badge SVG files under `.github/badges`
+          labels: documentation
+          add-paths: |
+            .github/badges/*.svg
