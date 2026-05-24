@@ -34,6 +34,12 @@ All work must start in GitHub Project `#27`:
 - Avoid `DEFAULT` singleton instances for behavior policies; use default constructors.
 - Use `var` where inferred type is obvious and readability is preserved.
 - Keep transition logic centralized (shared transition helpers) instead of duplicating per-action branching.
+- Keep application contracts immutable and explicit using records.
+- Keep contract records small via composition of related value objects.
+- Avoid nested contract type sprawl; prefer top-level contract types.
+- Keep one top-level type per `.java` file.
+- Organize packages as capability-first vertical slices (`<bounded-context>.<capability>`) instead of technical-layer buckets.
+- Keep application use-cases as thin orchestrators; keep business rules in domain objects.
 - Test classes must mirror production class names (`Foo` -> `FooTest`).
 - Keep one assert per test method.
 
