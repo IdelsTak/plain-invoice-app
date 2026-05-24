@@ -7,7 +7,7 @@ public record Money(BigDecimal amount, CurrencyCode currencyCode) {
   public Money {
     Objects.requireNonNull(amount, "amount cannot be null");
     Objects.requireNonNull(currencyCode, "currency code cannot be null");
-    amount = MonetaryArithmeticPolicy.DEFAULT.normalize(amount, currencyCode);
+    amount = new MonetaryArithmeticPolicy().normalize(amount, currencyCode);
   }
 
   public Money add(Money other) {

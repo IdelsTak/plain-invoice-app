@@ -6,7 +6,7 @@ Thanks for contributing.
 All work must start in GitHub Project `#27`:
 1. Create/refine Project item
 2. Ensure fields are set (`Priority`, `Area`, `Type`, `Milestone Bucket`, `Target Date` for `P0`)
-3. Convert/create linked repository issue
+3. Convert the existing linked draft item to a repository issue (do not create duplicate issues)
 4. Assign repository milestone (`M1`..`M4`)
 5. Move Project item to `In Progress`
 6. Implement and open PR linked to issue
@@ -24,6 +24,18 @@ All work must start in GitHub Project `#27`:
 - Unit tests use JUnit + Hamcrest (`*Test.java`)
 - UI integration tests use TestFX (`*IT.java`)
 - Behavior changes must include tests
+- JaCoCo coverage is enforced in `mvn verify` (line coverage minimum is build-gated)
+
+## Code consistency rules (mandatory)
+- Use `sealed` hierarchies for closed domain variants instead of enums where variant behavior/state transitions matter.
+- When all variants are nested in the sealed type, do not add an explicit `permits` list.
+- Prefer pattern-oriented state handling over repeated `instanceof` checks.
+- Use unnamed pattern `_` for intentionally unused pattern bindings.
+- Avoid `DEFAULT` singleton instances for behavior policies; use default constructors.
+- Use `var` where inferred type is obvious and readability is preserved.
+- Keep transition logic centralized (shared transition helpers) instead of duplicating per-action branching.
+- Test classes must mirror production class names (`Foo` -> `FooTest`).
+- Keep one assert per test method.
 
 ## Pull request rules
 - PR title must be semantic: `<type>: <summary>`

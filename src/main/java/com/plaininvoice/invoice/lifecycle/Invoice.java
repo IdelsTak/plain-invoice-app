@@ -37,16 +37,16 @@ public record Invoice(
   }
 
   public Money subtotal() {
-    Money seed = lineItems.getFirst().subtotal();
-    for (int i = 1; i < lineItems.size(); i++) {
+    var seed = lineItems.getFirst().subtotal();
+    for (var i = 1; i < lineItems.size(); i++) {
       seed = seed.add(lineItems.get(i).subtotal());
     }
     return seed;
   }
 
   public Money totalTax() {
-    Money seed = lineItems.getFirst().tax().tax();
-    for (int i = 1; i < lineItems.size(); i++) {
+    var seed = lineItems.getFirst().tax().tax();
+    for (var i = 1; i < lineItems.size(); i++) {
       seed = seed.add(lineItems.get(i).tax().tax());
     }
     return seed;
@@ -57,30 +57,49 @@ public record Invoice(
   }
 
   public Invoice issue() {
-    if (state != InvoiceState.DRAFT) {
-      throw new IllegalStateException("only draft invoices can be issued");
-    }
-    return new Invoice(number, seller, buyer, issuedOn, paymentTerms, lineItems, InvoiceState.ISSUED);
+    return transitionFrom(
+      Set.of(InvoiceState.Draft.class),
+      new InvoiceState.Issued(),
+      "only draft invoices can be issued"
+    );
   }
 
   public Invoice markSent() {
-    if (state != InvoiceState.ISSUED) {
-      throw new IllegalStateException("only issued invoices can be marked sent");
-    }
-    return new Invoice(number, seller, buyer, issuedOn, paymentTerms, lineItems, InvoiceState.SENT);
+    return transitionFrom(
+      Set.of(InvoiceState.Issued.class),
+      new InvoiceState.Sent(),
+      "only issued invoices can be marked sent"
+    );
   }
 
   public Invoice markPaid() {
-    if (state != InvoiceState.ISSUED && state != InvoiceState.SENT) {
-      throw new IllegalStateException("only issued or sent invoices can be marked paid");
-    }
-    return new Invoice(number, seller, buyer, issuedOn, paymentTerms, lineItems, InvoiceState.PAID);
+    return transitionFrom(
+      Set.of(InvoiceState.Issued.class, InvoiceState.Sent.class),
+      new InvoiceState.Paid(),
+      "only issued or sent invoices can be marked paid"
+    );
   }
 
   public Invoice voidInvoice() {
-    if (state == InvoiceState.PAID) {
-      throw new IllegalStateException("paid invoices cannot be voided");
+    return transitionFrom(
+      Set.of(InvoiceState.Draft.class, InvoiceState.Issued.class, InvoiceState.Sent.class, InvoiceState.Void.class),
+      new InvoiceState.Void(),
+      "paid invoices cannot be voided"
+    );
+  }
+
+  private Invoice transitionFrom(
+    Set<Class<? extends InvoiceState>> allowedStates,
+    InvoiceState nextState,
+    String message
+  ) {
+    if (!allowedStates.contains(state.getClass())) {
+      throw new IllegalStateException(message);
     }
-    return new Invoice(number, seller, buyer, issuedOn, paymentTerms, lineItems, InvoiceState.VOID);
+    return withState(nextState);
+  }
+
+  private Invoice withState(InvoiceState nextState) {
+    return new Invoice(number, seller, buyer, issuedOn, paymentTerms, lineItems, nextState);
   }
 }

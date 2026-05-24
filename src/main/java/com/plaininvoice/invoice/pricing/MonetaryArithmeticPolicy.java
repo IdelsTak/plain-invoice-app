@@ -6,7 +6,9 @@ import java.util.*;
 public final class MonetaryArithmeticPolicy {
   private final RoundingMode roundingMode;
 
-  public static final MonetaryArithmeticPolicy DEFAULT = new MonetaryArithmeticPolicy(RoundingMode.HALF_UP);
+  public MonetaryArithmeticPolicy() {
+    this(RoundingMode.HALF_UP);
+  }
 
   public MonetaryArithmeticPolicy(RoundingMode roundingMode) {
     this.roundingMode = Objects.requireNonNull(roundingMode, "rounding mode cannot be null");
@@ -15,7 +17,7 @@ public final class MonetaryArithmeticPolicy {
   public BigDecimal normalize(BigDecimal amount, CurrencyCode currencyCode) {
     Objects.requireNonNull(amount, "amount cannot be null");
     Objects.requireNonNull(currencyCode, "currency code cannot be null");
-    int scale = currencyCode.currency().getDefaultFractionDigits();
+    var scale = currencyCode.currency().getDefaultFractionDigits();
     if (scale < 0) {
       throw new IllegalArgumentException("currency must have a defined minor unit");
     }
