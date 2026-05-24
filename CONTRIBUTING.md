@@ -60,6 +60,9 @@ Before starting implementation for any issue:
 
 Do not start coding until this metadata gate is complete.
 
+Milestone progress note:
+- If milestone completion appears stale (for example 100% with open issues), re-save milestone assignments on the affected issues (`remove` then `set` the same milestone) to force GitHub to recalculate counters.
+
 ## Effort scale
 Use Fibonacci-style effort estimates in Project #27:
 - `1` trivial
