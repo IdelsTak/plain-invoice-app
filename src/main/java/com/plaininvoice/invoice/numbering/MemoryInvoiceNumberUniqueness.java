@@ -2,10 +2,10 @@ package com.plaininvoice.invoice.numbering;
 
 import java.util.*;
 
-public final class InMemoryInvoiceNumberUniqueness implements InvoiceNumberUniqueness {
+public final class MemoryInvoiceNumberUniqueness implements InvoiceNumberUniqueness {
   private final Set<InvoiceNumber> numbers;
 
-  public InMemoryInvoiceNumberUniqueness(Set<InvoiceNumber> numbers) {
+  public MemoryInvoiceNumberUniqueness(Set<InvoiceNumber> numbers) {
     this.numbers = Objects.requireNonNull(numbers, "numbers cannot be null");
   }
 

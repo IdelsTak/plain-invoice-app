@@ -16,20 +16,20 @@ final class CreateInvoiceTest {
 
   @Test
   void createsDraftInvoice() {
-    var useCase = new CreateInvoice(new InMemoryInvoiceNumberUniqueness(new HashSet<>()));
+    var useCase = new CreateInvoice(new MemoryInvoiceNumberUniqueness(new HashSet<>()));
     var result = useCase.execute(validRequest("CORE", 2000));
     assertThat(result.invoice().state(), is(new InvoiceState.Draft()));
   }
 
   @Test
   void rejectsNullRequest() {
-    var useCase = new CreateInvoice(new InMemoryInvoiceNumberUniqueness(new HashSet<>()));
+    var useCase = new CreateInvoice(new MemoryInvoiceNumberUniqueness(new HashSet<>()));
     assertThrows(NullPointerException.class, () -> useCase.execute(null));
   }
 
   @Test
   void rejectsDuplicateNumberOnCreate() {
-    var useCase = new CreateInvoice(new InMemoryInvoiceNumberUniqueness(new HashSet<>()));
+    var useCase = new CreateInvoice(new MemoryInvoiceNumberUniqueness(new HashSet<>()));
     useCase.execute(validRequest("CORE", 1));
     assertThrows(IllegalArgumentException.class, () -> useCase.execute(validRequest("CORE", 1)));
   }
