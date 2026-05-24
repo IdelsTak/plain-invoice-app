@@ -5,18 +5,18 @@ import static org.hamcrest.MatcherAssert.*;
 import static org.hamcrest.Matchers.*;
 import static org.junit.jupiter.api.Assertions.*;
 
-final class InvoiceNumberParserTest {
+final class InvoiceNumberScanTest {
 
   @Test
   void parsesSeriesAndSequence() {
-    var parser = new InvoiceNumberParser();
-    var parsed = parser.parse("core-42");
+    var scan = new InvoiceNumberScan();
+    var parsed = scan.parse("core-42");
     assertThat(parsed, is(new InvoiceNumber("CORE", 42)));
   }
 
   @Test
   void rejectsMalformedNumber() {
-    var parser = new InvoiceNumberParser();
-    assertThrows(IllegalArgumentException.class, () -> parser.parse("bad_format"));
+    var scan = new InvoiceNumberScan();
+    assertThrows(IllegalArgumentException.class, () -> scan.parse("bad_format"));
   }
 }
