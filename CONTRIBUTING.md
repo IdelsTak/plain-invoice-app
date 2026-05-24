@@ -26,21 +26,11 @@ All work must start in GitHub Project `#27`:
 - Behavior changes must include tests
 
 ## Pull request rules
-- PR body must contain only `## What changed` with a concise description of what the PR commits changed
+- PR title must be semantic: `<type>: <summary>`
+- Allowed title types: `feat`, `fix`, `refactor`, `test`, `docs`, `chore`, `ci`, `build`, `perf`
+- PR body must contain only `## What changed` with concise commit-change summary bullets
 - Do not include extra PR-body sections beyond `## What changed`
 - PR should contain one logical change set
-
-
-## Commit message standard
-Use Conventional Commit style:
-- `<type>(<scope>): <imperative summary>`
-- required max subject length: 48 characters (<49)
-- add a body for non-trivial changes explaining why
-
-Examples:
-- `feat(invoice): add deterministic tax rounding policy`
-- `fix(ui): prevent empty invoice save action`
-
 
 ## Mandatory pre-coding issue gate
 Before starting implementation for any issue:
@@ -51,7 +41,6 @@ Before starting implementation for any issue:
 
 Do not start coding until this metadata gate is complete.
 
-
 ## Effort scale
 Use Fibonacci-style effort estimates in Project #27:
 - `1` trivial
@@ -61,7 +50,6 @@ Use Fibonacci-style effort estimates in Project #27:
 - `8` large
 - `13` very large (split recommended)
 
-
 ## Issue body format (mandatory)
 Issue bodies must contain:
 - concise prose description of problem and scope
@@ -69,8 +57,6 @@ Issue bodies must contain:
 
 Do not use dedicated `## Problem` or `## Scope` headings.
 Use repository issue templates or match the same structure exactly.
-
-
 
 ## Feature PR metadata gate (mandatory)
 Before requesting review on a feature PR:

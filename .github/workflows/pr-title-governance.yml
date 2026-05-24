@@ -1,0 +1,21 @@
+name: PR Title Governance
+
+on:
+  pull_request:
+    types: [opened, edited, synchronize, reopened]
+
+jobs:
+  validate-pr-title:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Validate semantic PR title
+        env:
+          PR_TITLE: ${{ github.event.pull_request.title }}
+        run: |
+          set -euo pipefail
+          regex='^(feat|fix|refactor|test|docs|chore|ci|build|perf): [A-Za-z0-9].+'
+          echo "$PR_TITLE" | grep -Eq "$regex" || {
+            echo "PR title must match: <type>: <summary>"
+            echo "Allowed types: feat|fix|refactor|test|docs|chore|ci|build|perf"
+            exit 1
+          }
