@@ -15,6 +15,24 @@ final class MoneyTest {
     }
 
     @Test
+    void appliesHalfUpAtHalfCentBoundary() {
+        var money = new Money(new BigDecimal("10.005"), new CurrencyCode("USD"));
+        assertThat(money.amount(), comparesEqualTo(new BigDecimal("10.01")));
+    }
+
+    @Test
+    void normalizesCurrencyWithoutFractionDigits() {
+        var money = new Money(new BigDecimal("123.50"), new CurrencyCode("JPY"));
+        assertThat(money.amount(), comparesEqualTo(new BigDecimal("124")));
+    }
+
+    @Test
+    void normalizesCurrencyWithThreeFractionDigits() {
+        var money = new Money(new BigDecimal("1.23456"), new CurrencyCode("KWD"));
+        assertThat(money.amount(), comparesEqualTo(new BigDecimal("1.235")));
+    }
+
+    @Test
     void rejectsMismatchedCurrencyOnAddition() {
         var usd = new Money(new BigDecimal("10.00"), new CurrencyCode("USD"));
         var eur = new Money(new BigDecimal("2.00"), new CurrencyCode("EUR"));
