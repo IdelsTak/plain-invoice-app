@@ -2,6 +2,7 @@ package com.plaininvoice.invoice.editing;
 
 import com.plaininvoice.invoice.draft.*;
 import com.plaininvoice.invoice.lifecycle.*;
+import com.plaininvoice.invoice.numbering.*;
 import com.plaininvoice.invoice.pricing.*;
 import java.math.*;
 import java.time.*;
@@ -15,27 +16,43 @@ final class EditInvoiceTest {
 
   @Test
   void editsDraftInvoice() {
-    var useCase = new EditInvoice();
-    var edited = useCase.execute(validRequest(draftInvoice(), "INV-2001-REV"));
-    assertThat(edited.invoice().number(), is("INV-2001-REV"));
+    var useCase = new EditInvoice(new InMemoryInvoiceNumberUniqueness(new HashSet<>()), new InvoiceNumberParser());
+    var edited = useCase.execute(validRequest(draftInvoice(), "CORE", 2001));
+    assertThat(edited.invoice().number(), is("CORE-02001"));
   }
 
   @Test
   void rejectsEditingIssuedInvoice() {
-    var useCase = new EditInvoice();
+    var useCase = new EditInvoice(new InMemoryInvoiceNumberUniqueness(new HashSet<>()), new InvoiceNumberParser());
     assertThrows(
       IllegalStateException.class,
-      () -> useCase.execute(validRequest(draftInvoice().issue(), "INV-2001-REV"))
+      () -> useCase.execute(validRequest(draftInvoice().issue(), "CORE", 2001))
     );
   }
 
   @Test
   void rejectsNullRequest() {
-    var useCase = new EditInvoice();
+    var useCase = new EditInvoice(new InMemoryInvoiceNumberUniqueness(new HashSet<>()), new InvoiceNumberParser());
     assertThrows(NullPointerException.class, () -> useCase.execute(null));
   }
 
-  private EditInvoiceRequest validRequest(Invoice current, String number) {
+  @Test
+  void rejectsDuplicateNumberOnEdit() {
+    var uniqueness = new InMemoryInvoiceNumberUniqueness(new HashSet<>());
+    var useCase = new EditInvoice(uniqueness, new InvoiceNumberParser());
+    uniqueness.verify(new InvoiceNumber("CORE", 2001));
+    assertThrows(IllegalArgumentException.class, () -> useCase.execute(validRequest(draftInvoice(), "CORE", 2001)));
+  }
+
+  @Test
+  void allowsEditingWithoutRecheckingUnchangedNumber() {
+    var uniqueness = new InMemoryInvoiceNumberUniqueness(new HashSet<>());
+    uniqueness.verify(new InvoiceNumber("CORE", 2000));
+    var useCase = new EditInvoice(uniqueness, new InvoiceNumberParser());
+    assertDoesNotThrow(() -> useCase.execute(validRequest(draftInvoice(), "CORE", 2000)));
+  }
+
+  private EditInvoiceRequest validRequest(Invoice current, String series, long sequence) {
     var seller = new Party("Seller Ltd", "TAX-01", "seller@example.com");
     var buyer = new Party("Buyer LLC", "TAX-02", "buyer@example.com");
     var line = new LineItem(
@@ -46,7 +63,7 @@ final class EditInvoiceTest {
     );
 
     var spec = new InvoiceDraftSpec(
-      new InvoiceIdentity(number),
+      new InvoiceIdentity(new InvoiceNumber(series, sequence)),
       new InvoiceParties(seller, buyer),
       new InvoiceSchedule(LocalDate.of(2026, 5, 24), new PaymentTerms(LocalDate.of(2026, 6, 24), "Net 30")),
       new InvoiceLines(List.of(line))
@@ -66,7 +83,7 @@ final class EditInvoiceTest {
     );
 
     return new Invoice(
-      "INV-2001",
+      "CORE-02000",
       seller,
       buyer,
       LocalDate.of(2026, 5, 24),
