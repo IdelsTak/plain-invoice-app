@@ -30,7 +30,9 @@ jobs:
           generate-branches-badge: true
 
       - name: Create badge update pull request
+        id: create_badge_pr
         uses: peter-evans/create-pull-request@v7
+        continue-on-error: true
         with:
           commit-message: "ci: refresh coverage badges"
           branch: ci/coverage-badges
@@ -41,3 +43,9 @@ jobs:
           labels: documentation
           add-paths: |
             .github/badges/*.svg
+
+      - name: Note repository setting requirement
+        if: ${{ steps.create_badge_pr.outcome == 'failure' }}
+        run: |
+          echo "::warning::Coverage badge branch was pushed but PR creation is blocked."
+          echo "::warning::Enable repository setting: Actions > General > Workflow permissions > Allow GitHub Actions to create and approve pull requests."
