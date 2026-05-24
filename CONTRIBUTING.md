@@ -8,9 +8,14 @@ All work must start in GitHub Project `#27`:
 2. Ensure fields are set (`Priority`, `Area`, `Type`, `Milestone Bucket`, `Target Date` for `P0`)
 3. Convert the existing linked draft item to a repository issue (do not create duplicate issues)
 4. Move converted issue item from `Todo` to `Ready` (keep `Todo` mainly for draft items)
-5. Assign repository milestone (`M1`..`M4`)
-6. Move Project item to `In Progress` only when actively implementing
-7. Implement and open PR linked to issue
+5. If the issue depends on unfinished predecessor work, set issue dependency metadata (`blocked by`) and move status to `Blocked`
+6. Assign repository milestone (`M1`..`M4`)
+7. Move Project item to `In Progress` only when actively implementing
+8. Implement and open PR linked to issue
+
+Dependency status handling:
+- `Ready`: issue is unblocked and can be picked now.
+- `Blocked`: issue cannot start until its `blocked by` issues are `Done`; once unblocked, move it back to `Ready`.
 
 ## Development setup
 - Java 26+
