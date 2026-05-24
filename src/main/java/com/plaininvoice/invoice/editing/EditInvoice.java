@@ -6,9 +6,9 @@ import java.util.*;
 
 public final class EditInvoice {
   private final InvoiceNumberUniqueness uniqueness;
-  private final InvoiceNumberParser parser;
+  private final InvoiceNumberScan parser;
 
-  public EditInvoice(InvoiceNumberUniqueness uniqueness, InvoiceNumberParser parser) {
+  public EditInvoice(InvoiceNumberUniqueness uniqueness, InvoiceNumberScan parser) {
     this.uniqueness = Objects.requireNonNull(uniqueness, "invoice number uniqueness cannot be null");
     this.parser = Objects.requireNonNull(parser, "invoice number parser cannot be null");
   }

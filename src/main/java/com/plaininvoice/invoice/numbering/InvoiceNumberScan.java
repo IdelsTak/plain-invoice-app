@@ -2,7 +2,7 @@ package com.plaininvoice.invoice.numbering;
 
 import java.util.*;
 
-public final class InvoiceNumberParser {
+public final class InvoiceNumberScan {
 
   public InvoiceNumber parse(String value) {
     Objects.requireNonNull(value, "invoice number cannot be null");

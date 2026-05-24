@@ -16,14 +16,14 @@ final class EditInvoiceTest {
 
   @Test
   void editsDraftInvoice() {
-    var useCase = new EditInvoice(new InMemoryInvoiceNumberUniqueness(new HashSet<>()), new InvoiceNumberParser());
+    var useCase = new EditInvoice(new MemoryInvoiceNumberUniqueness(new HashSet<>()), new InvoiceNumberScan());
     var edited = useCase.execute(validRequest(draftInvoice(), "CORE", 2001));
     assertThat(edited.invoice().number(), is("CORE-02001"));
   }
 
   @Test
   void rejectsEditingIssuedInvoice() {
-    var useCase = new EditInvoice(new InMemoryInvoiceNumberUniqueness(new HashSet<>()), new InvoiceNumberParser());
+    var useCase = new EditInvoice(new MemoryInvoiceNumberUniqueness(new HashSet<>()), new InvoiceNumberScan());
     assertThrows(
       IllegalStateException.class,
       () -> useCase.execute(validRequest(draftInvoice().issue(), "CORE", 2001))
@@ -32,23 +32,23 @@ final class EditInvoiceTest {
 
   @Test
   void rejectsNullRequest() {
-    var useCase = new EditInvoice(new InMemoryInvoiceNumberUniqueness(new HashSet<>()), new InvoiceNumberParser());
+    var useCase = new EditInvoice(new MemoryInvoiceNumberUniqueness(new HashSet<>()), new InvoiceNumberScan());
     assertThrows(NullPointerException.class, () -> useCase.execute(null));
   }
 
   @Test
   void rejectsDuplicateNumberOnEdit() {
-    var uniqueness = new InMemoryInvoiceNumberUniqueness(new HashSet<>());
-    var useCase = new EditInvoice(uniqueness, new InvoiceNumberParser());
+    var uniqueness = new MemoryInvoiceNumberUniqueness(new HashSet<>());
+    var useCase = new EditInvoice(uniqueness, new InvoiceNumberScan());
     uniqueness.verify(new InvoiceNumber("CORE", 2001));
     assertThrows(IllegalArgumentException.class, () -> useCase.execute(validRequest(draftInvoice(), "CORE", 2001)));
   }
 
   @Test
   void allowsEditingWithoutRecheckingUnchangedNumber() {
-    var uniqueness = new InMemoryInvoiceNumberUniqueness(new HashSet<>());
+    var uniqueness = new MemoryInvoiceNumberUniqueness(new HashSet<>());
     uniqueness.verify(new InvoiceNumber("CORE", 2000));
-    var useCase = new EditInvoice(uniqueness, new InvoiceNumberParser());
+    var useCase = new EditInvoice(uniqueness, new InvoiceNumberScan());
     assertDoesNotThrow(() -> useCase.execute(validRequest(draftInvoice(), "CORE", 2000)));
   }
 

@@ -40,6 +40,8 @@ All work must start in GitHub Project `#27`:
 - Keep one top-level type per `.java` file.
 - Organize packages as capability-first vertical slices (`<bounded-context>.<capability>`) instead of technical-layer buckets.
 - Keep application use-cases as thin orchestrators; keep business rules in domain objects.
+- Keep class names concise (max 30 characters) and avoid technical-role suffixes (`Parser`, `Manager`, `Service`, `Model`, `Dao`, `Helper`, `Processor`, `Factory`).
+- Keep method names concise (max 18 characters).
 - Test classes must mirror production class names (`Foo` -> `FooTest`).
 - Keep one assert per test method.
 
