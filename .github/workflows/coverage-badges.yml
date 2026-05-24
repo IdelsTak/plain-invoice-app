@@ -1,0 +1,35 @@
+name: Coverage Badges
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  badges:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "26"
+
+      - name: Run verify
+        run: mvn -B -ntp verify
+
+      - name: Generate JaCoCo badges
+        uses: cicirello/jacoco-badge-generator@v2
+        with:
+          generate-branches-badge: true
+
+      - name: Commit updated badges
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: "ci: refresh coverage badges"
+          file_pattern: .github/badges/*.svg

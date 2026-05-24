@@ -12,5 +12,5 @@ jobs:
         with:
           distribution: temurin
           java-version: '26'
-      - name: Test
-        run: mvn -B -ntp test
+      - name: Verify
+        run: mvn -B -ntp verify

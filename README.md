@@ -1,5 +1,7 @@
 # plain-invoice-app
 
+[![CI](https://github.com/IdelsTak/plain-invoice-app/actions/workflows/ci.yml/badge.svg)](https://github.com/IdelsTak/plain-invoice-app/actions/workflows/ci.yml) [![Coverage](.github/badges/jacoco.svg)](https://github.com/IdelsTak/plain-invoice-app/actions/workflows/coverage-badges.yml) [![Branches](.github/badges/branches.svg)](https://github.com/IdelsTak/plain-invoice-app/actions/workflows/coverage-badges.yml) ![Java 26](https://img.shields.io/badge/Java-26-007396) ![Maven 3.9.14+](https://img.shields.io/badge/Maven-3.9.14%2B-C71A36) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+
 `plain-invoice-app` exists for people who want invoicing software that feels dependable, understandable, and local-first.
 
 Most invoice tools are either too bloated, too web-centric, or too opaque about how totals and taxes are calculated. This project takes a different route: a desktop app where invoice behavior is explicit in code, calculations are deterministic, and your data stays under your control.
