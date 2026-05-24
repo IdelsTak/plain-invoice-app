@@ -1,0 +1,55 @@
+PRAGMA foreign_keys = ON;
+
+CREATE TABLE IF NOT EXISTS invoices (
+  id TEXT PRIMARY KEY,
+  number TEXT NOT NULL UNIQUE,
+  currency_code TEXT NOT NULL,
+  seller_name TEXT NOT NULL,
+  seller_tax_id TEXT,
+  seller_email TEXT,
+  buyer_name TEXT NOT NULL,
+  buyer_tax_id TEXT,
+  buyer_email TEXT,
+  issued_on TEXT NOT NULL CHECK (issued_on GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]'),
+  due_date TEXT NOT NULL CHECK (due_date GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]'),
+  payment_note TEXT,
+  state TEXT NOT NULL CHECK (state IN ('DRAFT','ISSUED','SENT','PAID','VOID')),
+  voided_at TEXT,
+  voided_reason TEXT,
+  version INTEGER NOT NULL,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL,
+  CHECK ((state <> 'VOID') OR (voided_at IS NOT NULL))
+);
+
+CREATE TABLE IF NOT EXISTS invoice_lines (
+  id TEXT PRIMARY KEY,
+  invoice_id TEXT NOT NULL,
+  position INTEGER NOT NULL,
+  description TEXT NOT NULL,
+  quantity_numerator INTEGER NOT NULL,
+  quantity_denominator INTEGER NOT NULL CHECK (quantity_denominator > 0),
+  unit_amount_minor INTEGER NOT NULL CHECK (unit_amount_minor >= 0),
+  currency_code TEXT NOT NULL,
+  line_total_minor INTEGER GENERATED ALWAYS AS ((unit_amount_minor * quantity_numerator) / quantity_denominator) STORED,
+  FOREIGN KEY (invoice_id) REFERENCES invoices(id) ON DELETE CASCADE,
+  UNIQUE (invoice_id, position)
+);
+
+CREATE TABLE IF NOT EXISTS invoice_taxes (
+  id TEXT PRIMARY KEY,
+  invoice_line_id TEXT NOT NULL,
+  tax_label TEXT NOT NULL,
+  tax_rate_bps INTEGER NOT NULL CHECK (tax_rate_bps >= 0),
+  tax_base_minor INTEGER NOT NULL,
+  tax_amount_minor INTEGER NOT NULL,
+  currency_code TEXT NOT NULL,
+  FOREIGN KEY (invoice_line_id) REFERENCES invoice_lines(id) ON DELETE CASCADE,
+  UNIQUE (invoice_line_id, tax_label)
+);
+
+CREATE INDEX IF NOT EXISTS idx_invoices_state ON invoices(state);
+CREATE INDEX IF NOT EXISTS idx_invoices_issued_on ON invoices(issued_on);
+CREATE INDEX IF NOT EXISTS idx_invoices_unpaid_due ON invoices(due_date) WHERE state NOT IN ('PAID','VOID');
+CREATE INDEX IF NOT EXISTS idx_invoice_lines_invoice_id ON invoice_lines(invoice_id);
+CREATE INDEX IF NOT EXISTS idx_invoice_taxes_line_id ON invoice_taxes(invoice_line_id);
