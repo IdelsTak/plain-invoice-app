@@ -2,6 +2,7 @@ package com.plaininvoice.invoice.creation;
 
 import com.plaininvoice.invoice.draft.*;
 import com.plaininvoice.invoice.lifecycle.*;
+import com.plaininvoice.invoice.numbering.*;
 import com.plaininvoice.invoice.pricing.*;
 import java.math.*;
 import java.time.*;
@@ -15,22 +16,29 @@ final class CreateInvoiceTest {
 
   @Test
   void createsDraftInvoice() {
-    var useCase = new CreateInvoice();
-    var result = useCase.execute(validRequest());
+    var useCase = new CreateInvoice(new InMemoryInvoiceNumberUniqueness(new HashSet<>()));
+    var result = useCase.execute(validRequest("CORE", 2000));
     assertThat(result.invoice().state(), is(new InvoiceState.Draft()));
   }
 
   @Test
   void rejectsNullRequest() {
-    var useCase = new CreateInvoice();
+    var useCase = new CreateInvoice(new InMemoryInvoiceNumberUniqueness(new HashSet<>()));
     assertThrows(NullPointerException.class, () -> useCase.execute(null));
   }
 
-  private CreateInvoiceRequest validRequest() {
-    return new CreateInvoiceRequest(validSpec("INV-2000"));
+  @Test
+  void rejectsDuplicateNumberOnCreate() {
+    var useCase = new CreateInvoice(new InMemoryInvoiceNumberUniqueness(new HashSet<>()));
+    useCase.execute(validRequest("CORE", 1));
+    assertThrows(IllegalArgumentException.class, () -> useCase.execute(validRequest("CORE", 1)));
   }
 
-  private InvoiceDraftSpec validSpec(String number) {
+  private CreateInvoiceRequest validRequest(String series, long sequence) {
+    return new CreateInvoiceRequest(validSpec(series, sequence));
+  }
+
+  private InvoiceDraftSpec validSpec(String series, long sequence) {
     var seller = new Party("Seller Ltd", "TAX-01", "seller@example.com");
     var buyer = new Party("Buyer LLC", "TAX-02", "buyer@example.com");
     var line = new LineItem(
@@ -41,7 +49,7 @@ final class CreateInvoiceTest {
     );
 
     return new InvoiceDraftSpec(
-      new InvoiceIdentity(number),
+      new InvoiceIdentity(new InvoiceNumber(series, sequence)),
       new InvoiceParties(seller, buyer),
       new InvoiceSchedule(LocalDate.of(2026, 5, 24), new PaymentTerms(LocalDate.of(2026, 6, 24), "Net 30")),
       new InvoiceLines(List.of(line))
