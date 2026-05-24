@@ -4,6 +4,7 @@ import com.plaininvoice.invoice.draft.*;
 import com.plaininvoice.invoice.lifecycle.*;
 import com.plaininvoice.invoice.numbering.*;
 import com.plaininvoice.invoice.pricing.*;
+import com.plaininvoice.invoice.validation.*;
 import java.math.*;
 import java.time.*;
 import java.util.*;
@@ -41,7 +42,7 @@ final class EditInvoiceTest {
     var uniqueness = new MemoryInvoiceNumberUniqueness(new HashSet<>());
     var useCase = new EditInvoice(uniqueness, new InvoiceNumberScan());
     uniqueness.verify(new InvoiceNumber("CORE", 2001));
-    assertThrows(IllegalArgumentException.class, () -> useCase.execute(validRequest(draftInvoice(), "CORE", 2001)));
+    assertThrows(ValidationFault.class, () -> useCase.execute(validRequest(draftInvoice(), "CORE", 2001)));
   }
 
   @Test
