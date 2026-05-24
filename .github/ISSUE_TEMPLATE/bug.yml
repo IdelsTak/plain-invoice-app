@@ -3,29 +3,18 @@ description: Defect tracked from Project-first workflow
 title: "fix: "
 labels: ["type:bug"]
 body:
-  - type: input
-    id: project_item
-    attributes:
-      label: Project item URL
-      description: Link to the GitHub Project item in #27
-    validations:
-      required: true
   - type: textarea
-    id: reproduce
+    id: context
     attributes:
-      label: Reproduction
-      description: Steps to reproduce the issue
-    validations:
-      required: true
-  - type: textarea
-    id: expected
-    attributes:
-      label: Expected behavior
+      label: Description
+      description: Write concise prose describing defect impact and intended fix scope.
+      placeholder: Explain what is broken, impact, and intended fix scope in 2-5 sentences.
     validations:
       required: true
   - type: textarea
     id: acceptance
     attributes:
-      label: Acceptance criteria
+      label: Acceptance Criteria
+      description: Clear, testable completion criteria
     validations:
       required: true

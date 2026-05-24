@@ -5,14 +5,30 @@ on:
     types: [opened, edited, synchronize, reopened]
 
 jobs:
-  require-linked-issue:
+  require-summary-only-body:
     runs-on: ubuntu-latest
     steps:
-      - name: Ensure PR body links an issue with closing keyword
+      - name: Validate PR body is summary-only
         env:
           PR_BODY: ${{ github.event.pull_request.body }}
         run: |
-          echo "$PR_BODY" | grep -Eiq '(close|closes|closed|fix|fixes|fixed|resolve|resolves|resolved)\s+#\d+' || {
-            echo "PR body must contain a closing keyword with issue number, e.g. 'Closes #123'"
+          set -euo pipefail
+
+          if [ -z "${PR_BODY//[[:space:]]/}" ]; then
+            echo "PR body must not be empty"
+            exit 1
+          fi
+
+          # Require What changed heading
+          echo "$PR_BODY" | grep -Eq '^## What changed' || {
+            echo "PR body must start with '## What changed'"
             exit 1
           }
+
+          # Disallow other markdown headings to keep summary-only format
+          other_headings=$(echo "$PR_BODY" | grep -E '^## ' | grep -v '^## What changed' || true)
+          if [ -n "$other_headings" ]; then
+            echo "PR body must contain only the '## What changed' section"
+            echo "$other_headings"
+            exit 1
+          fi

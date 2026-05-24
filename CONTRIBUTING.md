@@ -12,8 +12,8 @@ All work must start in GitHub Project `#27`:
 6. Implement and open PR linked to issue
 
 ## Development setup
-- Java 21+
-- Maven 3.9+
+- Java 26+
+- Maven 3.9.14
 
 ## Commands
 - Unit tests: `mvn -B -ntp test`
@@ -26,17 +26,45 @@ All work must start in GitHub Project `#27`:
 - Behavior changes must include tests
 
 ## Pull request rules
-- PR must link issue with closing keyword, e.g. `Closes #123`
-- PR must include test evidence
+- PR title must be semantic: `<type>: <summary>`
+- Allowed title types: `feat`, `fix`, `refactor`, `test`, `docs`, `chore`, `ci`, `build`, `perf`
+- PR body must contain only `## What changed` with concise commit-change summary bullets
+- Do not include extra PR-body sections beyond `## What changed`
 - PR should contain one logical change set
+- `main` is updated via squash merge; PR title becomes final commit title
 
+## Mandatory pre-coding issue gate
+Before starting implementation for any issue:
+1. Set assignee
+2. Link issue to Project `#27`
+3. Ensure Project fields are complete: `Status`, `Priority`, `Area`, `Type`, `Milestone Bucket`, `Effort`, `Target Date` (for `P0`)
+4. Ensure repository milestone is assigned and matches Project milestone bucket
 
-## Commit message standard
-Use Conventional Commit style:
-- `<type>(<scope>): <imperative summary>`
-- preferred max subject length: 49 characters
-- add a body for non-trivial changes explaining why
+Do not start coding until this metadata gate is complete.
 
-Examples:
-- `feat(invoice): add deterministic tax rounding policy`
-- `fix(ui): prevent empty invoice save action`
+## Effort scale
+Use Fibonacci-style effort estimates in Project #27:
+- `1` trivial
+- `2` very small
+- `3` small
+- `5` medium
+- `8` large
+- `13` very large (split recommended)
+
+## Issue body format (mandatory)
+Issue bodies must contain:
+- concise prose description of problem and scope
+- `## Acceptance Criteria` section with checkboxes
+
+Do not use dedicated `## Problem` or `## Scope` headings.
+Use repository issue templates or match the same structure exactly.
+
+## Feature PR metadata gate (mandatory)
+Before requesting review on a feature PR:
+1. Set assignee
+2. Add labels (`type:*`, `area:*`)
+3. Set milestone matching Project milestone bucket
+4. Link PR to Project `plain-invoice Project` (`#27`)
+5. Set Project PR-item fields: `Status`, `Priority`, `Area`, `Type`, `Milestone Bucket`, `Effort`, and `Target Date` for `P0`
+
+PRs are not review-ready until this gate is complete.
