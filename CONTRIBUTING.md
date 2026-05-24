@@ -7,9 +7,10 @@ All work must start in GitHub Project `#27`:
 1. Create/refine Project item
 2. Ensure fields are set (`Priority`, `Area`, `Type`, `Milestone Bucket`, `Target Date` for `P0`)
 3. Convert the existing linked draft item to a repository issue (do not create duplicate issues)
-4. Assign repository milestone (`M1`..`M4`)
-5. Move Project item to `In Progress`
-6. Implement and open PR linked to issue
+4. Move converted issue item from `Todo` to `Ready` (keep `Todo` mainly for draft items)
+5. Assign repository milestone (`M1`..`M4`)
+6. Move Project item to `In Progress` only when actively implementing
+7. Implement and open PR linked to issue
 
 ## Development setup
 - Java 26+
