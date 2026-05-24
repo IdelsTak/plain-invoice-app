@@ -31,6 +31,7 @@ All work must start in GitHub Project `#27`:
 - PR body must contain only `## What changed` with concise commit-change summary bullets
 - Do not include extra PR-body sections beyond `## What changed`
 - PR should contain one logical change set
+- `main` is updated via squash merge; PR title becomes final commit title
 
 ## Mandatory pre-coding issue gate
 Before starting implementation for any issue:
