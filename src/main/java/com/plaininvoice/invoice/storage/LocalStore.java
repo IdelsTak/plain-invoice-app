@@ -2,6 +2,7 @@ package com.plaininvoice.invoice.storage;
 
 import java.nio.file.*;
 import java.sql.*;
+import java.time.*;
 import java.util.*;
 
 public final class LocalStore implements AutoCloseable {
@@ -18,6 +19,10 @@ public final class LocalStore implements AutoCloseable {
 
   public Path database() {
     return home.database();
+  }
+
+  public StoreBackupArchive backup(Path directory, Instant createdAt) {
+    return new CreateStoreBackup().execute(new StoreBackupRequest(home, directory, createdAt));
   }
 
   public InvoiceRepository invoices() {

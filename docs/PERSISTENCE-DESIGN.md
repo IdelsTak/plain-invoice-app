@@ -18,6 +18,21 @@ This document defines the persistence design for local invoice storage before ad
 - Repository adapters receive an already opened connection and remain focused on invoice persistence.
 - Startup failures are reported as explicit `IllegalStateException` failures for directory setup or database open errors.
 
+## Backup archives
+- Backups are produced from the configured local `StoreHome`.
+- The command writes a SQLite-safe database copy through the SQLite backup API exposed by the JDBC driver, not by copying a live database file directly.
+- Each backup artifact is a timestamped zip archive named `plain-invoice-YYYYMMDDTHHMMSSZ.zip`.
+- If the same timestamp already exists, the command appends a numeric suffix such as `-2`.
+- Each archive contains:
+  - `plain-invoice.sqlite`, the copied database snapshot
+  - `metadata.properties`, restore compatibility metadata
+- Metadata fields:
+  - `format=plain-invoice-backup-v1`
+  - `created_at=<ISO-8601 instant>`
+  - `database_name=<configured database file name>`
+  - `schema_version=1`
+- Restore flows must check `format` and `schema_version` before replacing or importing a local store.
+
 ## Entity model
 
 ### invoices
@@ -274,6 +289,8 @@ flowchart TD
 - SQLite `ALTER TABLE` support is limited, so late constraint changes are expensive (copy-table migration pattern).
 
 ## Research references
+- SQLite online backup API: https://www.sqlite.org/backup.html
+- SQLite `VACUUM INTO` behavior and limitations: https://sqlite.org/lang_vacuum.html
 - SQLite foreign keys: https://www.sqlite.org/foreignkeys.html
 - SQLite transactions (`BEGIN IMMEDIATE`): https://www.sqlite.org/lang_transaction.html
 - SQLite isolation behavior: https://www.sqlite.org/isolation.html
