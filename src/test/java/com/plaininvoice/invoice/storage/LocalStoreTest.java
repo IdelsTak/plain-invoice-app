@@ -7,6 +7,7 @@ import static org.junit.jupiter.api.Assertions.*;
 import java.lang.reflect.*;
 import java.nio.file.*;
 import java.sql.*;
+import java.time.*;
 import org.junit.jupiter.api.*;
 import org.junit.jupiter.api.io.*;
 
@@ -60,6 +61,14 @@ final class LocalStoreTest {
   void exposesInvoiceRepo(@TempDir Path temp) {
     try (var store = new LocalStore(temp)) {
       assertThat(store.invoices(), instanceOf(SqliteInvoiceRepo.class));
+    }
+  }
+
+  @Test
+  void createsBackup(@TempDir Path temp) {
+    try (var store = new LocalStore(temp.resolve("store"))) {
+      store.invoices();
+      assertThat(Files.isRegularFile(store.backup(temp.resolve("backups"), now()).path()), is(true));
     }
   }
 
@@ -137,6 +146,10 @@ final class LocalStoreTest {
       throw new SQLException("close failed");
     }
     return null;
+  }
+
+  private Instant now() {
+    return Instant.parse("2026-05-24T10:15:30Z");
   }
 
   private boolean tableExists(LocalStore store) throws Exception {
