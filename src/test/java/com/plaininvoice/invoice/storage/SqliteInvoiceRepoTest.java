@@ -24,6 +24,22 @@ final class SqliteInvoiceRepoTest {
   }
 
   @Test
+  void writesCreateAuditEvent() throws Exception {
+    try (var connection = open()) {
+      repo(connection).save(stored("inv-1", 0, invoice("CORE-00001", issuedOn(), money("12.00"))));
+      assertThat(auditType(connection, "inv-1", 1), is("CREATED"));
+    }
+  }
+
+  @Test
+  void writesCreateAuditVersion() throws Exception {
+    try (var connection = open()) {
+      repo(connection).save(stored("inv-1", 0, invoice("CORE-00001", issuedOn(), money("12.00"))));
+      assertThat(auditVersion(connection, "inv-1", 1), is(1L));
+    }
+  }
+
+  @Test
   void loadsSavedInvoiceNumber() throws Exception {
     try (var connection = open()) {
       var repo = repo(connection);
@@ -97,6 +113,26 @@ final class SqliteInvoiceRepoTest {
   }
 
   @Test
+  void appendsUpdateAuditEvent() throws Exception {
+    try (var connection = open()) {
+      var repo = repo(connection);
+      var saved = repo.save(stored("inv-1", 0, invoice("CORE-00001", issuedOn(), money("12.00"))));
+      repo.save(new StoredInvoice(saved.meta(), invoice("CORE-00001", issuedOn(), money("15.00"))));
+      assertThat(auditType(connection, "inv-1", 2), is("UPDATED"));
+    }
+  }
+
+  @Test
+  void keepsCreateAuditAfterUpdate() throws Exception {
+    try (var connection = open()) {
+      var repo = repo(connection);
+      var saved = repo.save(stored("inv-1", 0, invoice("CORE-00001", issuedOn(), money("12.00"))));
+      repo.save(new StoredInvoice(saved.meta(), invoice("CORE-00001", issuedOn(), money("15.00"))));
+      assertThat(auditCount(connection, "inv-1"), is(2));
+    }
+  }
+
+  @Test
   void updatesInvoiceAmount() throws Exception {
     try (var connection = open()) {
       var repo = repo(connection);
@@ -113,6 +149,28 @@ final class SqliteInvoiceRepoTest {
       var saved = repo.save(stored("inv-1", 0, invoice("CORE-00001", issuedOn(), money("12.00"))));
       repo.save(new StoredInvoice(saved.meta(), invoice("CORE-00001", issuedOn(), money("15.00"))));
       assertThrows(StoreConflict.class, () -> repo.save(new StoredInvoice(saved.meta(), invoice("CORE-00001", issuedOn(), money("16.00")))));
+    }
+  }
+
+  @Test
+  void appendsConflictAuditEvent() throws Exception {
+    try (var connection = open()) {
+      var repo = repo(connection);
+      var saved = repo.save(stored("inv-1", 0, invoice("CORE-00001", issuedOn(), money("12.00"))));
+      repo.save(new StoredInvoice(saved.meta(), invoice("CORE-00001", issuedOn(), money("15.00"))));
+      stale(repo, saved);
+      assertThat(auditType(connection, "inv-1", 3), is("CONFLICT"));
+    }
+  }
+
+  @Test
+  void recordsConflictReason() throws Exception {
+    try (var connection = open()) {
+      var repo = repo(connection);
+      var saved = repo.save(stored("inv-1", 0, invoice("CORE-00001", issuedOn(), money("12.00"))));
+      repo.save(new StoredInvoice(saved.meta(), invoice("CORE-00001", issuedOn(), money("15.00"))));
+      stale(repo, saved);
+      assertThat(auditDetail(connection, "inv-1", 3), is("invoice version conflict"));
     }
   }
 
@@ -182,6 +240,17 @@ final class SqliteInvoiceRepoTest {
   }
 
   @Test
+  void failsWhenConflictAuditFails() throws Exception {
+    try (var connection = open()) {
+      var repo = repo(connection);
+      var saved = repo.save(stored("inv-1", 0, invoice("CORE-00001", issuedOn(), money("12.00"))));
+      repo.save(new StoredInvoice(saved.meta(), invoice("CORE-00001", issuedOn(), money("15.00"))));
+      var failing = repo(failing(connection, "INSERT INTO invoice_audit_events"));
+      assertThrows(IllegalStateException.class, () -> failing.save(new StoredInvoice(saved.meta(), invoice("CORE-00001", issuedOn(), money("16.00")))));
+    }
+  }
+
+  @Test
   void failsWhenListFails() throws Exception {
     try (var connection = open()) {
       var repo = repo(failing(connection, "SELECT id FROM invoices"));
@@ -230,6 +299,15 @@ final class SqliteInvoiceRepoTest {
       var repo = repo(connection);
       assertThrows(IllegalStateException.class, () -> repo.save(stored("inv-1", 0, invoice("CORE-00001", issuedOn(), money("-1.00")))));
       assertThat(repo.load("inv-1"), is(Optional.empty()));
+    }
+  }
+
+  @Test
+  void failedCreateLeavesNoAudit() throws Exception {
+    try (var connection = open()) {
+      var repo = repo(connection);
+      failedCreate(repo);
+      assertThat(auditCount(connection, "inv-1"), is(0));
     }
   }
 
@@ -367,6 +445,24 @@ final class SqliteInvoiceRepoTest {
     return new StoredInvoice(meta(id, version), invoice);
   }
 
+  private void stale(SqliteInvoiceRepo repo, StoredInvoice saved) {
+    try {
+      repo.save(new StoredInvoice(saved.meta(), invoice("CORE-00001", issuedOn(), money("16.00"))));
+    } catch (StoreConflict _) {
+      return;
+    }
+    throw new AssertionError("stale save should conflict");
+  }
+
+  private void failedCreate(SqliteInvoiceRepo repo) {
+    try {
+      repo.save(stored("inv-1", 0, invoice("CORE-00001", issuedOn(), money("-1.00"))));
+    } catch (IllegalStateException _) {
+      return;
+    }
+    throw new AssertionError("invalid create should fail");
+  }
+
   private InvoiceStoreMeta meta(String id, long version) {
     return new InvoiceStoreMeta(new InvoiceStoreKey(id, version), new StoreClock(now(), now()), Optional.of(voidMark()));
   }
@@ -415,6 +511,54 @@ final class SqliteInvoiceRepoTest {
   private String voidReason(Connection connection, String id) throws Exception {
     try (var stmt = connection.prepareStatement("SELECT voided_reason FROM invoices WHERE id=?")) {
       stmt.setString(1, id);
+      try (var rs = stmt.executeQuery()) {
+        rs.next();
+        return rs.getString(1);
+      }
+    }
+  }
+
+  private int auditCount(Connection connection, String id) throws Exception {
+    try (var stmt = connection.prepareStatement("SELECT COUNT(*) FROM invoice_audit_events WHERE invoice_id=?")) {
+      stmt.setString(1, id);
+      try (var rs = stmt.executeQuery()) {
+        rs.next();
+        return rs.getInt(1);
+      }
+    }
+  }
+
+  private String auditType(Connection connection, String id, int sequence) throws Exception {
+    return auditText(connection, id, sequence, "event_type");
+  }
+
+  private String auditDetail(Connection connection, String id, int sequence) throws Exception {
+    return auditText(connection, id, sequence, "detail");
+  }
+
+  private long auditVersion(Connection connection, String id, int sequence) throws Exception {
+    try (
+      var stmt = connection.prepareStatement(
+        "SELECT invoice_version FROM invoice_audit_events WHERE invoice_id=? ORDER BY id LIMIT 1 OFFSET ?"
+      )
+    ) {
+      stmt.setString(1, id);
+      stmt.setInt(2, sequence - 1);
+      try (var rs = stmt.executeQuery()) {
+        rs.next();
+        return rs.getLong(1);
+      }
+    }
+  }
+
+  private String auditText(Connection connection, String id, int sequence, String column) throws Exception {
+    try (
+      var stmt = connection.prepareStatement(
+        "SELECT " + column + " FROM invoice_audit_events WHERE invoice_id=? ORDER BY id LIMIT 1 OFFSET ?"
+      )
+    ) {
+      stmt.setString(1, id);
+      stmt.setInt(2, sequence - 1);
       try (var rs = stmt.executeQuery()) {
         rs.next();
         return rs.getString(1);
