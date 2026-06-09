@@ -33,6 +33,14 @@ final class SqliteSchemaV1Test {
   }
 
   @Test
+  void createsInvoiceAuditTable() throws Exception {
+    try (var connection = open()) {
+      new SqliteSchemaV1().bootstrap(connection);
+      assertThat(tableExists(connection, "invoice_audit_events"), is(true));
+    }
+  }
+
+  @Test
   void rejectsNullConnection() {
     assertThrows(NullPointerException.class, () -> new SqliteSchemaV1().bootstrap(null));
   }
@@ -154,6 +162,47 @@ final class SqliteSchemaV1Test {
   }
 
   @Test
+  void enforcesAuditForeignKey() throws Exception {
+    try (var connection = open()) {
+      var schema = new SqliteSchemaV1();
+      schema.bootstrap(connection);
+      assertThrows(SQLException.class, () -> insertAudit(connection, "missing", "CREATED"));
+    }
+  }
+
+  @Test
+  void enforcesAuditTypeConstraint() throws Exception {
+    try (var connection = open()) {
+      var schema = new SqliteSchemaV1();
+      schema.bootstrap(connection);
+      insertInvoice(connection, "inv-1", "INV-0001", "DRAFT");
+      assertThrows(SQLException.class, () -> insertAudit(connection, "inv-1", "ARCHIVED"));
+    }
+  }
+
+  @Test
+  void preventsAuditUpdate() throws Exception {
+    try (var connection = open()) {
+      var schema = new SqliteSchemaV1();
+      schema.bootstrap(connection);
+      insertInvoice(connection, "inv-1", "INV-0001", "DRAFT");
+      insertAudit(connection, "inv-1", "CREATED");
+      assertThrows(SQLException.class, () -> updateAudit(connection));
+    }
+  }
+
+  @Test
+  void preventsAuditDelete() throws Exception {
+    try (var connection = open()) {
+      var schema = new SqliteSchemaV1();
+      schema.bootstrap(connection);
+      insertInvoice(connection, "inv-1", "INV-0001", "DRAFT");
+      insertAudit(connection, "inv-1", "CREATED");
+      assertThrows(SQLException.class, () -> deleteAudit(connection));
+    }
+  }
+
+  @Test
   void appliesSchemaIdempotently() throws Exception {
     try (var connection = open()) {
       var schema = new SqliteSchemaV1();
@@ -257,6 +306,33 @@ final class SqliteSchemaV1Test {
       stmt.setString(1, id);
       stmt.setString(2, lineId);
       stmt.setString(3, label);
+      stmt.executeUpdate();
+    }
+  }
+
+  private void insertAudit(Connection connection, String invoiceId, String type) throws Exception {
+    try (
+      var stmt = connection.prepareStatement(
+        """
+        INSERT INTO invoice_audit_events(invoice_id, event_type, invoice_version, occurred_at, detail)
+        VALUES(?, ?, 1, '2026-05-24T00:00:00Z', 'test')
+        """
+      )
+    ) {
+      stmt.setString(1, invoiceId);
+      stmt.setString(2, type);
+      stmt.executeUpdate();
+    }
+  }
+
+  private void updateAudit(Connection connection) throws Exception {
+    try (var stmt = connection.prepareStatement("UPDATE invoice_audit_events SET detail='changed'")) {
+      stmt.executeUpdate();
+    }
+  }
+
+  private void deleteAudit(Connection connection) throws Exception {
+    try (var stmt = connection.prepareStatement("DELETE FROM invoice_audit_events")) {
       stmt.executeUpdate();
     }
   }

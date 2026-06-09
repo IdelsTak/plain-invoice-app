@@ -45,10 +45,25 @@ public final class SqliteSchemaV1 {
 
   private List<String> split(String sql) {
     var statements = new ArrayList<String>();
+    var current = new StringBuilder();
+    var trigger = false;
     for (var fragment : sql.split(";")) {
       var statement = fragment.trim();
       if (!statement.isEmpty()) {
-        statements.add(statement);
+        if (!current.isEmpty()) {
+          current.append(';');
+        }
+        current.append(statement);
+        if (statement.toUpperCase(Locale.ROOT).startsWith("CREATE TRIGGER")) {
+          trigger = true;
+        }
+        if (trigger && "END".equalsIgnoreCase(statement)) {
+          trigger = false;
+        }
+        if (!trigger) {
+          statements.add(current.toString());
+          current.setLength(0);
+        }
       }
     }
     return statements;

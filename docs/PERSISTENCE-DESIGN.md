@@ -98,11 +98,31 @@ Constraints:
 Rules:
 - multiple tax components per line are supported (`VAT`, `WHT`, etc).
 
+### invoice_audit_events
+Purpose: append-only record of invoice persistence mutations and repository conflict outcomes.
+
+Columns:
+- `id` INTEGER PRIMARY KEY AUTOINCREMENT
+- `invoice_id` TEXT NOT NULL
+- `event_type` TEXT NOT NULL
+- `invoice_version` INTEGER NOT NULL
+- `occurred_at` TEXT NOT NULL
+- `detail` TEXT NOT NULL
+
+Foreign keys:
+- `invoice_id` -> `invoices(id)` ON DELETE RESTRICT
+
+Rules:
+- create/update audit rows are written in the same transaction as the invoice mutation.
+- stale-version conflict rows are appended after rollback so the conflict is still observable.
+- update/delete triggers prevent normal mutation of audit rows.
+
 ## Mermaid ER model
 
 ```mermaid
 erDiagram
     INVOICES ||--|{ INVOICE_LINES : contains
+    INVOICES ||--|{ INVOICE_AUDIT_EVENTS : records
     INVOICE_LINES ||--|{ INVOICE_TAXES : has
 
     INVOICES {
@@ -147,6 +167,15 @@ erDiagram
       integer tax_amount_minor
       text currency_code
     }
+
+    INVOICE_AUDIT_EVENTS {
+      integer id PK
+      text invoice_id FK
+      text event_type
+      integer invoice_version
+      text occurred_at
+      text detail
+    }
 ```
 
 ## Currency consistency
@@ -162,7 +191,8 @@ Single write transaction:
 2. Insert `invoices` with `version=1`
 3. Insert `invoice_lines`
 4. Insert `invoice_taxes`
-5. `COMMIT`
+5. Insert append-only `invoice_audit_events` row
+6. `COMMIT`
 
 Rollback behavior:
 - Any failure triggers `ROLLBACK` and aborts aggregate write.
@@ -173,7 +203,8 @@ Single write transaction:
 2. Update `invoices` with optimistic concurrency check (`WHERE id=? AND version=?`)
 3. Replace child rows (`invoice_lines`, `invoice_taxes`) in same transaction
 4. Increment version (`version = version + 1`) on successful header update
-5. `COMMIT`
+5. Insert append-only `invoice_audit_events` row
+6. `COMMIT`
 
 Rollback behavior:
 - Any failure triggers `ROLLBACK` and aborts aggregate update.
@@ -236,6 +267,7 @@ flowchart TD
 - unique index on `invoice_lines(invoice_id, position)`
 - index on `invoice_taxes(invoice_line_id)`
 - unique index on `invoice_taxes(invoice_line_id, tax_label)`
+- index on `invoice_audit_events(invoice_id)`
 
 ## Migration implications
 - Schema constraints should be defined in initial `CREATE TABLE` statements.

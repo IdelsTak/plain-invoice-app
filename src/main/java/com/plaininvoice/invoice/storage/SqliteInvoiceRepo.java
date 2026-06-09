@@ -25,9 +25,10 @@ public final class SqliteInvoiceRepo implements InvoiceRepository {
     Objects.requireNonNull(invoice, "stored invoice cannot be null");
     var next = next(invoice.meta());
     var rows = mapping.rows(next, invoice.invoice());
+    var create = invoice.meta().key().version() == 0;
     begin();
     try {
-      if (invoice.meta().key().version() == 0) {
+      if (create) {
         insertHead(rows.head());
       } else {
         updateHead(rows.head(), invoice.meta().key().version());
@@ -35,8 +36,13 @@ public final class SqliteInvoiceRepo implements InvoiceRepository {
       }
       insertLines(rows.lines());
       insertTaxes(rows.taxes());
+      insertAudit(audit(next, create));
       commit();
       return new StoredInvoice(next, invoice.invoice());
+    } catch (StoreConflict ex) {
+      rollback();
+      insertConflict(next, ex);
+      throw ex;
     } catch (RuntimeException ex) {
       rollback();
       throw ex;
@@ -71,6 +77,29 @@ public final class SqliteInvoiceRepo implements InvoiceRepository {
   private InvoiceStoreMeta next(InvoiceStoreMeta meta) {
     var version = meta.key().version() == 0 ? 1 : meta.key().version() + 1;
     return new InvoiceStoreMeta(new InvoiceStoreKey(meta.key().id(), version), meta.clock(), meta.voidMark());
+  }
+
+  private InvoiceAuditEvent audit(InvoiceStoreMeta meta, boolean create) {
+    var kind = create ? new InvoiceAuditKind.Created() : new InvoiceAuditKind.Updated();
+    var detail = create ? "invoice created" : "invoice updated";
+    return new InvoiceAuditEvent(meta.key().id(), meta.key().version(), meta.clock().updatedAt(), kind, detail);
+  }
+
+  private void insertConflict(InvoiceStoreMeta meta, StoreConflict conflict) {
+    begin();
+    try {
+      insertAudit(new InvoiceAuditEvent(
+        meta.key().id(),
+        meta.key().version(),
+        meta.clock().updatedAt(),
+        new InvoiceAuditKind.Conflict(),
+        conflict.getMessage()
+      ));
+      commit();
+    } catch (RuntimeException ex) {
+      rollback();
+      throw ex;
+    }
   }
 
   private void foreignKeys() {
@@ -264,6 +293,35 @@ public final class SqliteInvoiceRepo implements InvoiceRepository {
     } catch (SQLException ex) {
       throw new IllegalStateException("invoice tax insert failed", ex);
     }
+  }
+
+  private void insertAudit(InvoiceAuditEvent event) {
+    try (
+      var stmt = connection.prepareStatement(
+        """
+        INSERT INTO invoice_audit_events(
+          invoice_id, event_type, invoice_version, occurred_at, detail
+        ) VALUES(?, ?, ?, ?, ?)
+        """
+      )
+    ) {
+      stmt.setString(1, event.invoiceId());
+      stmt.setString(2, kind(event.kind()));
+      stmt.setLong(3, event.version());
+      stmt.setString(4, text(event.occurredAt()));
+      stmt.setString(5, event.detail());
+      stmt.executeUpdate();
+    } catch (SQLException ex) {
+      throw new IllegalStateException("invoice audit insert failed", ex);
+    }
+  }
+
+  private String kind(InvoiceAuditKind kind) {
+    return switch (kind) {
+      case InvoiceAuditKind.Created _ -> "CREATED";
+      case InvoiceAuditKind.Updated _ -> "UPDATED";
+      case InvoiceAuditKind.Conflict _ -> "CONFLICT";
+    };
   }
 
   private Optional<InvoiceHeadRow> readHead(String id) {

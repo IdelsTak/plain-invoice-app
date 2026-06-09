@@ -48,8 +48,31 @@ CREATE TABLE IF NOT EXISTS invoice_taxes (
   UNIQUE (invoice_line_id, tax_label)
 );
 
+CREATE TABLE IF NOT EXISTS invoice_audit_events (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  invoice_id TEXT NOT NULL,
+  event_type TEXT NOT NULL CHECK (event_type IN ('CREATED','UPDATED','CONFLICT')),
+  invoice_version INTEGER NOT NULL CHECK (invoice_version >= 0),
+  occurred_at TEXT NOT NULL,
+  detail TEXT NOT NULL,
+  FOREIGN KEY (invoice_id) REFERENCES invoices(id) ON DELETE RESTRICT
+);
+
+CREATE TRIGGER IF NOT EXISTS trg_invoice_audit_no_update
+BEFORE UPDATE ON invoice_audit_events
+BEGIN
+  SELECT RAISE(ABORT, 'invoice audit is append-only');
+END;
+
+CREATE TRIGGER IF NOT EXISTS trg_invoice_audit_no_delete
+BEFORE DELETE ON invoice_audit_events
+BEGIN
+  SELECT RAISE(ABORT, 'invoice audit is append-only');
+END;
+
 CREATE INDEX IF NOT EXISTS idx_invoices_state ON invoices(state);
 CREATE INDEX IF NOT EXISTS idx_invoices_issued_on ON invoices(issued_on);
 CREATE INDEX IF NOT EXISTS idx_invoices_unpaid_due ON invoices(due_date) WHERE state NOT IN ('PAID','VOID');
 CREATE INDEX IF NOT EXISTS idx_invoice_lines_invoice_id ON invoice_lines(invoice_id);
 CREATE INDEX IF NOT EXISTS idx_invoice_taxes_line_id ON invoice_taxes(invoice_line_id);
+CREATE INDEX IF NOT EXISTS idx_invoice_audit_invoice_id ON invoice_audit_events(invoice_id);
