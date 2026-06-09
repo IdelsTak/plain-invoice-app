@@ -10,6 +10,14 @@ This document defines the persistence design for local invoice storage before ad
 - Write mode: transactions opened with `BEGIN IMMEDIATE` for write flows
 - Precision: never use floating-point for money values
 
+## Local store lifecycle
+- Application storage is represented by a directory plus one database file name.
+- The default database file name is `plain-invoice.sqlite`.
+- The lifecycle object creates the storage directory before opening SQLite.
+- The lifecycle object owns the JDBC connection and closes it on application shutdown.
+- Repository adapters receive an already opened connection and remain focused on invoice persistence.
+- Startup failures are reported as explicit `IllegalStateException` failures for directory setup or database open errors.
+
 ## Entity model
 
 ### invoices
