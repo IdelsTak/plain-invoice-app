@@ -33,6 +33,13 @@ This document defines the persistence design for local invoice storage before ad
   - `schema_version=1`
 - Restore flows must check `format` and `schema_version` before replacing or importing a local store.
 
+## Local settings
+- Seller profile and invoice defaults live in the application/settings slice as immutable records.
+- The settings slice exposes a repository port for loading and saving one local settings snapshot.
+- Storage adapters may persist that snapshot in SQLite or another local format, but domain objects must not depend on storage rows.
+- Settings should include seller profile, default currency, default payment terms, default invoice number series, and optional tax presets.
+- New-invoice flows should consume settings through application contracts instead of hidden JavaFX control defaults.
+
 ## Entity model
 
 ### invoices
