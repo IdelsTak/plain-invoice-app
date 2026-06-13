@@ -15,6 +15,12 @@ final class ValidationFaultTest {
   }
 
   @Test
+  void returnsImmutableErrors() {
+    var fault = new ValidationFault(List.of(new InvalidValue("invoice.number", "invoice.invalid", Map.of("reason", "bad"))));
+    assertThrows(UnsupportedOperationException.class, () -> fault.errors().add(new InvalidValue("invoice.date", "invoice.invalid", Map.of())));
+  }
+
+  @Test
   void rejectsEmptyErrors() {
     assertThrows(IllegalArgumentException.class, () -> new ValidationFault(List.of()));
   }
