@@ -40,6 +40,24 @@ This document defines the persistence design for local invoice storage before ad
 - Settings should include seller profile, default currency, default payment terms, default invoice number series, and optional tax presets.
 - New-invoice flows should consume settings through application contracts instead of hidden JavaFX control defaults.
 
+## Invariant ownership
+Persistence uses three levels of invariant ownership. The owning level performs the primary check; lower levels only add cheap safety nets where SQLite can express the rule locally.
+
+| Invariant | Owner | SQLite role |
+|---|---|---|
+| Currency code shape, money normalization, quantity validity, percentage validity | Domain | none |
+| Party, payment terms, line item, invoice lifecycle transitions | Domain | state/date shape checks only |
+| Invoice lines use one invoice currency | Domain, then repository boundary | none currently; issue #60 decides child currency storage/enforcement |
+| Row graph consistency when rehydrating an invoice | Repository boundary | foreign keys and uniqueness constraints |
+| One persisted tax row per current line mapping | Repository boundary | `UNIQUE (invoice_line_id, tax_label)` only |
+| Optimistic concurrency and conflict reporting | Repository boundary | `version` column is data, not the rule |
+| Aggregate write atomicity | Repository boundary | SQLite transaction engine |
+| Primary keys, parent-child references, unique invoice number, unique line position, unique tax label | Database safety net | primary key, foreign key, and unique constraints |
+| Local row shapes: valid state code, ISO date text shape, void timestamp presence, positive denominator, non-negative stored minor amounts/rates | Database safety net | `CHECK` constraints |
+| Audit append-only behavior | Database safety net | update/delete triggers |
+
+Rules that cross rows or tables stay out of `CHECK` constraints. SQLite `CHECK` constraints are for local row rules; cross-table consistency belongs in repository logic or explicit triggers when a later issue decides a database safety net is worth the migration cost.
+
 ## Entity model
 
 ### invoices
@@ -202,8 +220,8 @@ erDiagram
 
 ## Currency consistency
 - `invoices.currency_code` is authoritative.
-- `invoice_lines.currency_code` and `invoice_taxes.currency_code` must match the invoice header currency.
-- Enforce in repository layer and (where feasible) via schema-level checks/triggers in migration.
+- Current child `currency_code` values are snapshots validated at the repository boundary.
+- Do not add ad hoc SQLite currency checks until issue #60 decides whether child currency columns remain or are replaced by the authoritative header currency.
 
 ## Transaction boundaries
 
