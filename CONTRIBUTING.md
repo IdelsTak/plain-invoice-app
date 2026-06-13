@@ -49,6 +49,7 @@ Dependency status handling:
 - Keep root capability packages small; move persistence implementation details into named storage capability slices such as `local`, `backup`, `audit`, and `sqlite`.
 - Keep rendering document concerns split into focused slices: `document.printable` for printable invoice contracts, `document.layout` for renderer-neutral layout tokens, and `document.pagination` for page-frame pagination; the `document` root must not contain production types.
 - Keep export adapter tests anchored to `docs/EXPORT-ACCEPTANCE.md`; compare canonical fixtures with format-specific golden rules instead of weakening assertions for adapter convenience.
+- Keep export adapters in `invoice.exporting`; they consume page/document values and must not leak HTML, PDF, CSV, or printer concerns back into domain/rendering contracts.
 - Keep application use-cases as thin orchestrators; keep business rules in domain objects.
 - Keep class names concise (max 30 characters) and avoid technical-role suffixes (`Parser`, `Manager`, `Service`, `Model`, `Dao`, `Helper`, `Processor`, `Factory`).
 - Keep method names concise (max 18 characters).
