@@ -145,6 +145,52 @@ final class SqliteInvoiceRepoTest {
   }
 
   @Test
+  void rejectsIssuedEdit() throws Exception {
+    try (var connection = open()) {
+      var repo = repo(connection);
+      var saved = repo.save(stored("inv-1", 0, issued()));
+      assertThrows(IllegalStateException.class, () -> repo.save(new StoredInvoice(saved.meta(), changed())));
+    }
+  }
+
+  @Test
+  void rejectsSentEdit() throws Exception {
+    try (var connection = open()) {
+      var repo = repo(connection);
+      var saved = repo.save(stored("inv-1", 0, sent()));
+      assertThrows(IllegalStateException.class, () -> repo.save(new StoredInvoice(saved.meta(), changed())));
+    }
+  }
+
+  @Test
+  void rejectsPaidEdit() throws Exception {
+    try (var connection = open()) {
+      var repo = repo(connection);
+      var saved = repo.save(stored("inv-1", 0, paid()));
+      assertThrows(IllegalStateException.class, () -> repo.save(new StoredInvoice(saved.meta(), changed())));
+    }
+  }
+
+  @Test
+  void rejectsVoidEdit() throws Exception {
+    try (var connection = open()) {
+      var repo = repo(connection);
+      var saved = repo.save(stored("inv-1", 0, voided()));
+      assertThrows(IllegalStateException.class, () -> repo.save(new StoredInvoice(saved.meta(), changed())));
+    }
+  }
+
+  @Test
+  void keepsIssuedAmount() throws Exception {
+    try (var connection = open()) {
+      var repo = repo(connection);
+      var saved = repo.save(stored("inv-1", 0, issued()));
+      failedEdit(repo, saved);
+      assertThat(repo.load("inv-1").orElseThrow().invoice().subtotal().amount(), comparesEqualTo(new BigDecimal("12.00")));
+    }
+  }
+
+  @Test
   void rejectsStaleVersion() throws Exception {
     try (var connection = open()) {
       var repo = repo(connection);
@@ -230,6 +276,15 @@ final class SqliteInvoiceRepoTest {
       var repo = repo(failing(connection, "DELETE FROM invoice_lines"));
       var saved = repo.save(stored("inv-1", 0, invoice("CORE-00001", issuedOn(), money("12.00"))));
       assertThrows(IllegalStateException.class, () -> repo.save(new StoredInvoice(saved.meta(), invoice("CORE-00001", issuedOn(), money("15.00")))));
+    }
+  }
+
+  @Test
+  void failsStateCheck() throws Exception {
+    try (var connection = open()) {
+      var repo = repo(connection);
+      var saved = repo.save(stored("inv-1", 0, invoice("CORE-00001", issuedOn(), money("12.00"))));
+      assertThrows(IllegalStateException.class, () -> repo(failing(connection, "SELECT state FROM invoices")).save(new StoredInvoice(saved.meta(), changed())));
     }
   }
 
@@ -465,6 +520,15 @@ final class SqliteInvoiceRepoTest {
     throw new AssertionError("invalid create should fail");
   }
 
+  private void failedEdit(SqliteInvoiceRepo repo, StoredInvoice saved) {
+    try {
+      repo.save(new StoredInvoice(saved.meta(), changed()));
+    } catch (IllegalStateException _) {
+      return;
+    }
+    throw new AssertionError("non-draft edit should fail");
+  }
+
   private InvoiceStoreMeta meta(String id, long version) {
     return new InvoiceStoreMeta(new InvoiceStoreKey(id, version), new StoreClock(now(), now()), Optional.of(voidMark()));
   }
@@ -479,6 +543,26 @@ final class SqliteInvoiceRepoTest {
 
   private Invoice invoice(String number, LocalDate issuedOn, Money unitPrice) {
     return new Invoice(number, seller(), buyer(), issuedOn, terms(issuedOn), List.of(line(unitPrice)), new InvoiceState.Draft());
+  }
+
+  private Invoice changed() {
+    return invoice("CORE-00001", issuedOn(), money("15.00"));
+  }
+
+  private Invoice issued() {
+    return invoice("CORE-00001", issuedOn(), money("12.00")).issue();
+  }
+
+  private Invoice sent() {
+    return issued().markSent();
+  }
+
+  private Invoice paid() {
+    return issued().markPaid();
+  }
+
+  private Invoice voided() {
+    return invoice("CORE-00001", issuedOn(), money("12.00")).voidInvoice();
   }
 
   private LineItem line(Money unitPrice) {

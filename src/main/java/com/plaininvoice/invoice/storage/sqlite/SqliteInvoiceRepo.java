@@ -34,6 +34,7 @@ public final class SqliteInvoiceRepo implements InvoiceRepository {
       if (create) {
         insertHead(rows.head());
       } else {
+        requireDraft(invoice.meta().key());
         updateHead(rows.head(), invoice.meta().key().version());
         deleteLines(rows.head().meta().key().id());
       }
@@ -102,6 +103,30 @@ public final class SqliteInvoiceRepo implements InvoiceRepository {
     } catch (RuntimeException ex) {
       rollback();
       throw ex;
+    }
+  }
+
+  private void requireDraft(InvoiceStoreKey key) {
+    try {
+      var stmt = connection.prepareStatement(
+        """
+        SELECT state FROM invoices WHERE id=? AND version=?
+        """
+      );
+      stmt.setString(1, key.id());
+      stmt.setLong(2, key.version());
+      var rs = stmt.executeQuery();
+      if (!rs.next()) {
+        stmt.close();
+        return;
+      }
+      var state = rs.getString("state");
+      stmt.close();
+      if (!"DRAFT".equals(state)) {
+        throw new IllegalStateException("only draft invoices can be edited");
+      }
+    } catch (SQLException ex) {
+      throw new IllegalStateException("invoice state check failed", ex);
     }
   }
 

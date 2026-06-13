@@ -51,6 +51,7 @@ Persistence uses three levels of invariant ownership. The owning level performs 
 | Row graph consistency when rehydrating an invoice | Repository boundary | foreign keys and uniqueness constraints |
 | One persisted tax row per current line mapping | Repository boundary | `UNIQUE (invoice_line_id, tax_label)` only |
 | Optimistic concurrency and conflict reporting | Repository boundary | `version` column is data, not the rule |
+| Draft-only persisted invoice edits | Repository boundary | no trigger until lifecycle transition commands are separated from edits |
 | Aggregate write atomicity | Repository boundary | SQLite transaction engine |
 | Primary keys, parent-child references, unique invoice number, unique line position, unique tax label | Database safety net | primary key, foreign key, and unique constraints |
 | Local row shapes: valid state code, ISO date text shape, void timestamp presence, positive denominator, non-negative stored minor amounts/rates | Database safety net | `CHECK` constraints |
@@ -240,14 +241,21 @@ Rollback behavior:
 ### update invoice
 Single write transaction:
 1. `BEGIN IMMEDIATE`
-2. Update `invoices` with optimistic concurrency check (`WHERE id=? AND version=?`)
-3. Replace child rows (`invoice_lines`, `invoice_taxes`) in same transaction
-4. Increment version (`version = version + 1`) on successful header update
-5. Insert append-only `invoice_audit_events` row
-6. `COMMIT`
+2. Check the current row for the expected `id` and `version`
+3. Reject the write if the current row exists and `state <> 'DRAFT'`
+4. Update `invoices` with optimistic concurrency check (`WHERE id=? AND version=?`)
+5. Replace child rows (`invoice_lines`, `invoice_taxes`) in same transaction
+6. Increment version (`version = version + 1`) on successful header update
+7. Insert append-only `invoice_audit_events` row
+8. `COMMIT`
 
 Rollback behavior:
 - Any failure triggers `ROLLBACK` and aborts aggregate update.
+
+Trigger decision:
+- Do not add a draft-only update trigger in schema v1 yet.
+- The repository owns draft-only edit enforcement because the database cannot currently distinguish an invoice edit from a future explicit lifecycle transition command.
+- Revisit a trigger only after lifecycle persistence commands are separated from general edit persistence.
 
 ### load/list invoices
 Read flows:
