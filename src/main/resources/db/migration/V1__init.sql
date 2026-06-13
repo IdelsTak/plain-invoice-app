@@ -31,7 +31,6 @@ CREATE TABLE IF NOT EXISTS invoice_lines (
   quantity_denominator INTEGER NOT NULL CHECK (quantity_denominator > 0),
   unit_amount_minor INTEGER NOT NULL CHECK (unit_amount_minor >= 0),
   currency_code TEXT NOT NULL,
-  line_total_minor INTEGER GENERATED ALWAYS AS ((unit_amount_minor * quantity_numerator) / quantity_denominator) STORED,
   FOREIGN KEY (invoice_id) REFERENCES invoices(id) ON DELETE CASCADE,
   UNIQUE (invoice_id, position)
 );

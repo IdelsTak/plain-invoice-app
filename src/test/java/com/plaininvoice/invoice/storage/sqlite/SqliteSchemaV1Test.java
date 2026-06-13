@@ -152,13 +152,11 @@ final class SqliteSchemaV1Test {
   }
 
   @Test
-  void computesLineTotalMinor() throws Exception {
+  void omitsLineTotal() throws Exception {
     try (var connection = open()) {
       var schema = new SqliteSchemaV1();
       schema.bootstrap(connection);
-      insertInvoice(connection, "inv-1", "INV-0001", "DRAFT");
-      insertLine(connection, "line-1", "inv-1", 1);
-      assertThat(lineTotal(connection, "line-1"), is(500L));
+      assertThat(columnExists(connection, "invoice_lines", "line_total_minor"), is(false));
     }
   }
 
@@ -291,6 +289,16 @@ final class SqliteSchemaV1Test {
     }
   }
 
+  private boolean columnExists(Connection connection, String table, String column) throws Exception {
+    try (var stmt = connection.prepareStatement("SELECT name FROM pragma_table_info(?) WHERE name=?")) {
+      stmt.setString(1, table);
+      stmt.setString(2, column);
+      try (var rs = stmt.executeQuery()) {
+        return rs.next();
+      }
+    }
+  }
+
   private void insertInvoice(Connection connection, String id, String number, String state) throws Exception {
     insertInvoiceWithDate(connection, id, number, "2026-05-24", "2026-06-24", state, null);
   }
@@ -379,16 +387,6 @@ final class SqliteSchemaV1Test {
       stmt.setLong(6, amount);
       stmt.setString(7, currency);
       stmt.executeUpdate();
-    }
-  }
-
-  private long lineTotal(Connection connection, String id) throws Exception {
-    try (var stmt = connection.prepareStatement("SELECT line_total_minor FROM invoice_lines WHERE id=?")) {
-      stmt.setString(1, id);
-      try (var rs = stmt.executeQuery()) {
-        rs.next();
-        return rs.getLong(1);
-      }
     }
   }
 
