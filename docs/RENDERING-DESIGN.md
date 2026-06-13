@@ -66,7 +66,7 @@ This keeps future golden-file tests viable for HTML, PDF, CSV, preview, and page
 The following items should build on `PageDocument` instead of reading the domain aggregate directly:
 - export acceptance fixtures and golden-file comparisons defined in `docs/EXPORT-ACCEPTANCE.md`
 - HTML export through `HtmlPort` in `com.plaininvoice.invoice.exporting`
-- PDF export
+- PDF export through `PdfPort` in `com.plaininvoice.invoice.exporting`
 - JavaFX invoice preview
 - page output flow
 
