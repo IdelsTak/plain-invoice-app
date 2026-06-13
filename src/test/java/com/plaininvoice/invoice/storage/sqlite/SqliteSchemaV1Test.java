@@ -132,12 +132,43 @@ final class SqliteSchemaV1Test {
   }
 
   @Test
+  void enforcesLineQuantityDenominator() throws Exception {
+    try (var connection = open()) {
+      var schema = new SqliteSchemaV1();
+      schema.bootstrap(connection);
+      insertInvoice(connection, "inv-1", "INV-0001", "DRAFT");
+      assertThrows(SQLException.class, () -> lineWith(connection, "line-1", "inv-1", 1, 2, 0, 250));
+    }
+  }
+
+  @Test
+  void enforcesLineUnitAmount() throws Exception {
+    try (var connection = open()) {
+      var schema = new SqliteSchemaV1();
+      schema.bootstrap(connection);
+      insertInvoice(connection, "inv-1", "INV-0001", "DRAFT");
+      assertThrows(SQLException.class, () -> lineWith(connection, "line-1", "inv-1", 1, 2, 1, -1));
+    }
+  }
+
+  @Test
   void computesLineTotalMinor() throws Exception {
     try (var connection = open()) {
       var schema = new SqliteSchemaV1();
       schema.bootstrap(connection);
       insertInvoice(connection, "inv-1", "INV-0001", "DRAFT");
       insertLine(connection, "line-1", "inv-1", 1);
+      assertThat(lineTotal(connection, "line-1"), is(500L));
+    }
+  }
+
+  @Test
+  void acceptsChildCurrencySnapshot() throws Exception {
+    try (var connection = open()) {
+      var schema = new SqliteSchemaV1();
+      schema.bootstrap(connection);
+      insertInvoice(connection, "inv-1", "INV-0001", "DRAFT");
+      lineWithCurrency(connection, "line-1", "inv-1", 1, "EUR");
       assertThat(lineTotal(connection, "line-1"), is(500L));
     }
   }
@@ -268,19 +299,52 @@ final class SqliteSchemaV1Test {
   }
 
   private void insertLine(Connection connection, String id, String invoiceId, int position) throws Exception {
+    lineWith(connection, id, invoiceId, position, 2, 1, 250);
+  }
+
+  private void lineWith(
+    Connection connection,
+    String id,
+    String invoiceId,
+    int position,
+    long numerator,
+    long denominator,
+    long amount
+  ) throws Exception {
+    lineWith(connection, id, invoiceId, position, numerator, denominator, amount, "USD");
+  }
+
+  private void lineWithCurrency(Connection connection, String id, String invoiceId, int position, String currency) throws Exception {
+    lineWith(connection, id, invoiceId, position, 2, 1, 250, currency);
+  }
+
+  private void lineWith(
+    Connection connection,
+    String id,
+    String invoiceId,
+    int position,
+    long numerator,
+    long denominator,
+    long amount,
+    String currency
+  ) throws Exception {
     try (
       var stmt = connection.prepareStatement(
         """
         INSERT INTO invoice_lines(
           id, invoice_id, position, description, quantity_numerator, quantity_denominator,
           unit_amount_minor, currency_code
-        ) VALUES(?, ?, ?, 'Service', 2, 1, 250, 'USD')
+        ) VALUES(?, ?, ?, 'Service', ?, ?, ?, ?)
         """
       )
     ) {
       stmt.setString(1, id);
       stmt.setString(2, invoiceId);
       stmt.setInt(3, position);
+      stmt.setLong(4, numerator);
+      stmt.setLong(5, denominator);
+      stmt.setLong(6, amount);
+      stmt.setString(7, currency);
       stmt.executeUpdate();
     }
   }
