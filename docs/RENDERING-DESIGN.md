@@ -1,14 +1,14 @@
 # Rendering Design
 
 ## Scope
-This document defines the printable invoice document and renderer-neutral layout boundaries. It is not an HTML, PDF, JavaFX preview, or printer implementation.
+This document defines the printable invoice document, renderer-neutral layout, and page-frame pagination boundaries. It is not an HTML, PDF, JavaFX preview, or printer implementation.
 
 ## Document Boundary
 The document slice starts at `DocumentPort` in `com.plaininvoice.invoice.document.printable`.
 
 `DocumentPort` accepts a `DocumentRequest` containing an `Invoice` aggregate and deterministic document metadata. It returns an immutable `InvoiceDocument` value that downstream renderers can translate into layout tokens, HTML, PDF, preview panes, or page output.
 
-The document slice must not depend on JavaFX, persistence, PDF libraries, printer APIs, or HTML builders. Those are edge adapters that consume document/layout values later.
+The document slice must not depend on JavaFX, persistence, PDF libraries, printer APIs, or HTML builders. Those are edge adapters that consume document/layout/page values later.
 
 ## Document Shape
 `InvoiceDocument` is composed from small immutable records:
@@ -36,20 +36,34 @@ Layout tokens include:
 - `FooterToken`: deterministic footer text
 - `PageHints`: running header/footer and table break hints
 
+## Pagination Boundary
+The pagination slice starts at `PagePort` in `com.plaininvoice.invoice.document.pagination`.
+
+`PagePort` accepts a `LayoutDocument` and returns a `PageDocument` made of ordered `PageFrame` values. Page frames keep preview, PDF, HTML, and print adapters aligned without depending on JavaFX printer APIs or PDF libraries.
+
+Pagination is deterministic and rule-based. The first rule is line-count based through `PageRules`; later renderers may add measured layout adapters without changing the printable document contract.
+
+Page frames include:
+- page number
+- repeated header
+- body blocks with parties, line table, totals, and payment terms
+- repeated footer
+- a `finalPage` flag so renderers know where totals and terms should be emphasized
+
 ## Determinism
-Document and layout construction must be deterministic:
+Document, layout, and pagination construction must be deterministic:
 - preserve invoice line order
 - assign line positions from `1`
 - derive amounts from domain methods (`subtotal`, `tax`, `total`)
 - keep caller-provided metadata explicit
-- defensively copy document and layout line collections
+- defensively copy document, layout, and page-frame collections
 - use explicit page and break hints instead of renderer defaults
+- produce stable page numbers and final-page markers
 
 This keeps future golden-file tests viable for HTML, PDF, CSV, preview, and page output.
 
-## Downstream Work Blocked By Layout Tokens
-The following items should build on `LayoutDocument` instead of reading the domain aggregate directly:
-- pagination rules and page frames
+## Downstream Work Blocked By Page Frames
+The following items should build on `PageDocument` instead of reading the domain aggregate directly:
 - export acceptance fixtures and golden-file comparisons
 - HTML export
 - PDF export
