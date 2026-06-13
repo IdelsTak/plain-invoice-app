@@ -28,6 +28,7 @@ PDF export:
 - normalize line endings to `LF`
 - keep fonts, page ordering, page numbers, and metadata deterministic
 - use binary comparison only after font embedding and metadata are stable enough to avoid machine-specific noise
+- build from `PageDocument` so PDF export uses the same page-frame sequence as preview and print
 
 CSV export:
 - use UTF-8
@@ -73,6 +74,17 @@ CSV output must:
 - quote fields containing commas, quotes, CR/LF, or leading/trailing spaces
 - double embedded quotes
 - preserve empty fields and non-ASCII text
+
+## PDF Adapter
+The PDF adapter starts at `PdfPort` in `com.plaininvoice.invoice.exporting`.
+
+`PdfPort` accepts a `PageDocument` and returns a deterministic `PdfFile`. PDF output is accepted through extracted text and explicit metadata rather than byte-for-byte comparison because PDF libraries may emit object identifiers or other binary details that are not invoice meaning.
+
+PDF output must:
+- use explicit fonts instead of renderer defaults
+- preserve page order and page numbers
+- include invoice header, parties, lines, totals, terms, and footer text
+- avoid wall-clock timestamps and environment-specific values
 
 ## Research References
 - RFC 4180 defines common CSV record, header, quoting, and line-break conventions: https://www.rfc-editor.org/info/rfc4180/

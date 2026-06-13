@@ -13,6 +13,7 @@
     <junit.version>6.1.0</junit.version>
     <javafx.version>27-ea+16</javafx.version>
     <jacoco.version>0.8.14</jacoco.version>
+    <pdfbox.version>3.0.7</pdfbox.version>
     <jacoco.minimum.line.coverage>1.00</jacoco.minimum.line.coverage>
   </properties>
 
@@ -38,6 +39,11 @@
       <groupId>org.xerial</groupId>
       <artifactId>sqlite-jdbc</artifactId>
       <version>3.53.1.0</version>
+    </dependency>
+    <dependency>
+      <groupId>org.apache.pdfbox</groupId>
+      <artifactId>pdfbox</artifactId>
+      <version>${pdfbox.version}</version>
     </dependency>
   </dependencies>
 
