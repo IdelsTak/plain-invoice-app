@@ -39,6 +39,7 @@ Dependency status handling:
 - Use unnamed pattern `_` for intentionally unused pattern bindings.
 - Avoid `DEFAULT` singleton instances for behavior policies; use default constructors.
 - Use `var` where inferred type is obvious and readability is preserved.
+- Defensively copy collection inputs for stored fields/components using `List.copyOf`, `Set.copyOf`, `Map.copyOf`, or an owned mutable copy when internal mutation is required; explicit collection accessors must return immutable snapshots instead of backing fields.
 - Keep transition logic centralized (shared transition helpers) instead of duplicating per-action branching.
 - Keep application contracts immutable and explicit using records.
 - Keep contract records small via composition of related value objects.

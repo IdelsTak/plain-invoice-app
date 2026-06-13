@@ -22,6 +22,6 @@ public final class ValidationFault extends IllegalArgumentException {
   }
 
   public List<ValidationError> errors() {
-    return errors;
+    return List.copyOf(errors);
   }
 }

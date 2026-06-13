@@ -6,7 +6,7 @@ public final class MemoryInvoiceNumberUniqueness implements InvoiceNumberUniquen
   private final Set<InvoiceNumber> numbers;
 
   public MemoryInvoiceNumberUniqueness(Set<InvoiceNumber> numbers) {
-    this.numbers = Objects.requireNonNull(numbers, "numbers cannot be null");
+    this.numbers = new HashSet<>(Objects.requireNonNull(numbers, "numbers cannot be null"));
   }
 
   @Override
