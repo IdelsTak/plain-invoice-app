@@ -21,6 +21,7 @@ HTML export:
 - normalize line endings to `LF`
 - keep escaping, element order, and key attributes deterministic
 - do not normalize away invoice values, ordering, tax values, totals, or payment terms
+- build from `PageDocument` so HTML preview/export uses the same page-frame sequence as PDF and print
 
 PDF export:
 - compare extracted text and explicit document metadata
@@ -48,6 +49,17 @@ Fixture updates must be reviewed as behavior changes:
 - update expected files in the same pull request as the adapter behavior
 - keep one canonical case per business concern
 - prefer adding a new case over weakening comparison rules
+
+## HTML Adapter
+The HTML adapter starts at `HtmlPort` in `com.plaininvoice.invoice.exporting`.
+
+`HtmlPort` accepts a `PageDocument` and returns a deterministic UTF-8 `HtmlPage`. It is an export edge: it may know about HTML, but domain, printable document, layout, and pagination slices must not know about it.
+
+HTML output must:
+- escape text explicitly
+- include invoice header, parties, lines, totals, terms, footer, and page numbers
+- keep CSS deterministic and self-contained enough for local preview
+- avoid volatile timestamps or environment-specific values
 
 ## Research References
 - RFC 4180 defines common CSV record, header, quoting, and line-break conventions: https://www.rfc-editor.org/info/rfc4180/
