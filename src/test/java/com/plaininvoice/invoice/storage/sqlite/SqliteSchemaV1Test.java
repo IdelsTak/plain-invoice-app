@@ -163,13 +163,23 @@ final class SqliteSchemaV1Test {
   }
 
   @Test
-  void acceptsChildCurrencySnapshot() throws Exception {
+  void rejectsLineCurrencyMismatch() throws Exception {
     try (var connection = open()) {
       var schema = new SqliteSchemaV1();
       schema.bootstrap(connection);
       insertInvoice(connection, "inv-1", "INV-0001", "DRAFT");
-      lineWithCurrency(connection, "line-1", "inv-1", 1, "EUR");
-      assertThat(lineTotal(connection, "line-1"), is(500L));
+      assertThrows(SQLException.class, () -> lineWithCurrency(connection, "line-1", "inv-1", 1, "EUR"));
+    }
+  }
+
+  @Test
+  void rejectsLineCurrencyUpdate() throws Exception {
+    try (var connection = open()) {
+      var schema = new SqliteSchemaV1();
+      schema.bootstrap(connection);
+      insertInvoice(connection, "inv-1", "INV-0001", "DRAFT");
+      insertLine(connection, "line-1", "inv-1", 1);
+      assertThrows(SQLException.class, () -> updateLineCurrency(connection, "line-1", "EUR"));
     }
   }
 
@@ -191,6 +201,29 @@ final class SqliteSchemaV1Test {
       insertLine(connection, "line-1", "inv-1", 1);
       insertTax(connection, "tax-1", "line-1", "VAT");
       assertThrows(SQLException.class, () -> insertTax(connection, "tax-2", "line-1", "VAT"));
+    }
+  }
+
+  @Test
+  void rejectsTaxCurrencyMismatch() throws Exception {
+    try (var connection = open()) {
+      var schema = new SqliteSchemaV1();
+      schema.bootstrap(connection);
+      insertInvoice(connection, "inv-1", "INV-0001", "DRAFT");
+      insertLine(connection, "line-1", "inv-1", 1);
+      assertThrows(SQLException.class, () -> taxWithCurrency(connection, "tax-1", "line-1", "VAT", "EUR"));
+    }
+  }
+
+  @Test
+  void rejectsTaxCurrencyUpdate() throws Exception {
+    try (var connection = open()) {
+      var schema = new SqliteSchemaV1();
+      schema.bootstrap(connection);
+      insertInvoice(connection, "inv-1", "INV-0001", "DRAFT");
+      insertLine(connection, "line-1", "inv-1", 1);
+      insertTax(connection, "tax-1", "line-1", "VAT");
+      assertThrows(SQLException.class, () -> updateTaxCurrency(connection, "tax-1", "EUR"));
     }
   }
 
@@ -359,19 +392,40 @@ final class SqliteSchemaV1Test {
     }
   }
 
+  private void updateLineCurrency(Connection connection, String id, String currency) throws Exception {
+    try (var stmt = connection.prepareStatement("UPDATE invoice_lines SET currency_code=? WHERE id=?")) {
+      stmt.setString(1, currency);
+      stmt.setString(2, id);
+      stmt.executeUpdate();
+    }
+  }
+
   private void insertTax(Connection connection, String id, String lineId, String label) throws Exception {
+    taxWithCurrency(connection, id, lineId, label, "USD");
+  }
+
+  private void taxWithCurrency(Connection connection, String id, String lineId, String label, String currency) throws Exception {
     try (
       var stmt = connection.prepareStatement(
         """
         INSERT INTO invoice_taxes(
           id, invoice_line_id, tax_label, tax_rate_bps, tax_base_minor, tax_amount_minor, currency_code
-        ) VALUES(?, ?, ?, 1600, 500, 80, 'USD')
+        ) VALUES(?, ?, ?, 1600, 500, 80, ?)
         """
       )
     ) {
       stmt.setString(1, id);
       stmt.setString(2, lineId);
       stmt.setString(3, label);
+      stmt.setString(4, currency);
+      stmt.executeUpdate();
+    }
+  }
+
+  private void updateTaxCurrency(Connection connection, String id, String currency) throws Exception {
+    try (var stmt = connection.prepareStatement("UPDATE invoice_taxes SET currency_code=? WHERE id=?")) {
+      stmt.setString(1, currency);
+      stmt.setString(2, id);
       stmt.executeUpdate();
     }
   }

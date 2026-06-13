@@ -13,7 +13,7 @@ Invoice persistence must preserve aggregate consistency, support deterministic u
 - Require update statements to match both `id` and expected `version`.
 - Treat zero-row updates as concurrency conflicts.
 - Store money as integer minor units in persistence to avoid floating-point precision drift.
-- Make invoice header currency authoritative and keep child currency values consistent with it.
+- Make invoice header currency authoritative; child currency columns are checked snapshots, not independent state.
 - Support multiple tax components per line using `invoice_taxes(invoice_line_id, tax_label)` uniqueness.
 
 ## Consequences

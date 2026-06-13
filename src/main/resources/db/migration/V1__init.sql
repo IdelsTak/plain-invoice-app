@@ -70,6 +70,34 @@ BEGIN
   SELECT RAISE(ABORT, 'invoice audit is append-only');
 END;
 
+CREATE TRIGGER IF NOT EXISTS trg_invoice_lines_currency_insert
+BEFORE INSERT ON invoice_lines
+WHEN NEW.currency_code <> (SELECT currency_code FROM invoices WHERE id = NEW.invoice_id)
+BEGIN
+  SELECT RAISE(ABORT, 'invoice line currency must match invoice currency');
+END;
+
+CREATE TRIGGER IF NOT EXISTS trg_invoice_lines_currency_update
+BEFORE UPDATE OF currency_code, invoice_id ON invoice_lines
+WHEN NEW.currency_code <> (SELECT currency_code FROM invoices WHERE id = NEW.invoice_id)
+BEGIN
+  SELECT RAISE(ABORT, 'invoice line currency must match invoice currency');
+END;
+
+CREATE TRIGGER IF NOT EXISTS trg_invoice_taxes_currency_insert
+BEFORE INSERT ON invoice_taxes
+WHEN NEW.currency_code <> (SELECT currency_code FROM invoice_lines WHERE id = NEW.invoice_line_id)
+BEGIN
+  SELECT RAISE(ABORT, 'invoice tax currency must match line currency');
+END;
+
+CREATE TRIGGER IF NOT EXISTS trg_invoice_taxes_currency_update
+BEFORE UPDATE OF currency_code, invoice_line_id ON invoice_taxes
+WHEN NEW.currency_code <> (SELECT currency_code FROM invoice_lines WHERE id = NEW.invoice_line_id)
+BEGIN
+  SELECT RAISE(ABORT, 'invoice tax currency must match line currency');
+END;
+
 CREATE INDEX IF NOT EXISTS idx_invoices_state ON invoices(state);
 CREATE INDEX IF NOT EXISTS idx_invoices_issued_on ON invoices(issued_on);
 CREATE INDEX IF NOT EXISTS idx_invoices_unpaid_due ON invoices(due_date) WHERE state NOT IN ('PAID','VOID');
