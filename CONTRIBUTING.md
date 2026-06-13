@@ -46,6 +46,7 @@ Dependency status handling:
 - Avoid nested contract type sprawl; prefer top-level contract types.
 - Keep one top-level type per `.java` file.
 - Organize packages as capability-first vertical slices (`<bounded-context>.<capability>`) instead of technical-layer buckets.
+- Keep root capability packages small; move persistence implementation details into named storage capability slices such as `local`, `backup`, `audit`, and `sqlite`.
 - Keep application use-cases as thin orchestrators; keep business rules in domain objects.
 - Keep class names concise (max 30 characters) and avoid technical-role suffixes (`Parser`, `Manager`, `Service`, `Model`, `Dao`, `Helper`, `Processor`, `Factory`).
 - Keep method names concise (max 18 characters).
