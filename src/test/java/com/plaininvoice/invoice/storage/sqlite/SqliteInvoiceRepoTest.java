@@ -145,6 +145,15 @@ final class SqliteInvoiceRepoTest {
   }
 
   @Test
+  void roundsFractionalTotal() throws Exception {
+    try (var connection = open()) {
+      var repo = repo(connection);
+      repo.save(stored("inv-1", 0, invoiceWithQty("0.666", "1.00")));
+      assertThat(repo.load("inv-1").orElseThrow().invoice().subtotal().amount(), comparesEqualTo(new BigDecimal("0.67")));
+    }
+  }
+
+  @Test
   void rejectsIssuedEdit() throws Exception {
     try (var connection = open()) {
       var repo = repo(connection);
@@ -543,6 +552,18 @@ final class SqliteInvoiceRepoTest {
 
   private Invoice invoice(String number, LocalDate issuedOn, Money unitPrice) {
     return new Invoice(number, seller(), buyer(), issuedOn, terms(issuedOn), List.of(line(unitPrice)), new InvoiceState.Draft());
+  }
+
+  private Invoice invoiceWithQty(String quantity, String unitPrice) {
+    return new Invoice(
+      "CORE-00001",
+      seller(),
+      buyer(),
+      issuedOn(),
+      terms(issuedOn()),
+      List.of(new LineItem("Consulting", new Quantity(new BigDecimal(quantity)), money(unitPrice), new Percentage(new BigDecimal("16")))),
+      new InvoiceState.Draft()
+    );
   }
 
   private Invoice changed() {
