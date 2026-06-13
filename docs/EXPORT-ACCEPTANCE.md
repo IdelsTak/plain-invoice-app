@@ -34,6 +34,7 @@ CSV export:
 - use `CRLF` record separators
 - compare headers, column order, quoting, escaping, and records according to RFC 4180
 - do not normalize commas, quotes, embedded line breaks, empty fields, currency values, tax values, or totals
+- export invoice detail data from `InvoiceDocument` because CSV is a data-export adapter, not a paged rendering adapter
 
 ## Volatile Output
 Only normalize values that are inherently volatile and not part of invoice meaning:
@@ -60,6 +61,18 @@ HTML output must:
 - include invoice header, parties, lines, totals, terms, footer, and page numbers
 - keep CSS deterministic and self-contained enough for local preview
 - avoid volatile timestamps or environment-specific values
+
+## CSV Adapter
+The CSV adapter starts at `CsvPort` in `com.plaininvoice.invoice.exporting`.
+
+`CsvPort` accepts an `InvoiceDocument` and returns a deterministic UTF-8 `CsvFile` with `CRLF` record separators. It exports invoice detail rows with stable columns rather than page frames because CSV is data interchange, not a paged document format.
+
+CSV output must:
+- keep header names and column order stable
+- write one data row per invoice line
+- quote fields containing commas, quotes, CR/LF, or leading/trailing spaces
+- double embedded quotes
+- preserve empty fields and non-ASCII text
 
 ## Research References
 - RFC 4180 defines common CSV record, header, quoting, and line-break conventions: https://www.rfc-editor.org/info/rfc4180/
