@@ -64,7 +64,7 @@ This keeps future golden-file tests viable for HTML, PDF, CSV, preview, and page
 
 ## Downstream Work Blocked By Page Frames
 The following items should build on `PageDocument` instead of reading the domain aggregate directly:
-- export acceptance fixtures and golden-file comparisons
+- export acceptance fixtures and golden-file comparisons defined in `docs/EXPORT-ACCEPTANCE.md`
 - HTML export
 - PDF export
 - JavaFX invoice preview
