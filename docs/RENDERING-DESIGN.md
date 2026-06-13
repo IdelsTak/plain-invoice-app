@@ -69,3 +69,5 @@ The following items should build on `PageDocument` instead of reading the domain
 - PDF export
 - JavaFX invoice preview
 - page output flow
+
+CSV export is the exception: it is a data-export adapter over `InvoiceDocument`, not a paged rendering adapter.
