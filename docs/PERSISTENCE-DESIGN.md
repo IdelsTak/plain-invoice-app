@@ -47,7 +47,7 @@ Persistence uses three levels of invariant ownership. The owning level performs 
 |---|---|---|
 | Currency code shape, money normalization, quantity validity, percentage validity | Domain | none |
 | Party, payment terms, line item, invoice lifecycle transitions | Domain | state/date shape checks only |
-| Invoice lines use one invoice currency | Domain, then repository boundary | none currently; issue #60 decides child currency storage/enforcement |
+| Invoice lines use one invoice currency | Domain, then repository boundary | child currency triggers reject drift from header/line snapshots |
 | Row graph consistency when rehydrating an invoice | Repository boundary | foreign keys and uniqueness constraints |
 | One persisted tax row per current line mapping | Repository boundary | `UNIQUE (invoice_line_id, tax_label)` only |
 | Optimistic concurrency and conflict reporting | Repository boundary | `version` column is data, not the rule |
@@ -221,8 +221,11 @@ erDiagram
 
 ## Currency consistency
 - `invoices.currency_code` is authoritative.
-- Current child `currency_code` values are snapshots validated at the repository boundary.
-- Do not add ad hoc SQLite currency checks until issue #60 decides whether child currency columns remain or are replaced by the authoritative header currency.
+- Persisted invoices are strictly single-currency.
+- `invoice_lines.currency_code` and `invoice_taxes.currency_code` remain stored snapshots, not independent currency state.
+- Repository mapping validates row currency while rehydrating invoices.
+- SQLite triggers reject line currency drift from the invoice header and tax currency drift from the parent line.
+- Do not use child currency columns to infer invoice currency; always use `invoices.currency_code`.
 
 ## Transaction boundaries
 
