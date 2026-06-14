@@ -11,15 +11,20 @@ import java.util.*;
 public final class SqliteInvoiceRepo implements InvoiceRepository {
   private final Connection connection;
   private final InvoiceMapping mapping;
+  private final SqliteRepoJdbcPort jdbc;
 
   public SqliteInvoiceRepo(Connection connection) {
     this(connection, new InvoiceMapping());
   }
 
   SqliteInvoiceRepo(Connection connection, InvoiceMapping mapping) {
+    this(connection, mapping, new JdbcSqliteRepoPort(connection));
+  }
+
+  SqliteInvoiceRepo(Connection connection, InvoiceMapping mapping, SqliteRepoJdbcPort jdbc) {
     this.connection = Objects.requireNonNull(connection, "connection cannot be null");
     this.mapping = Objects.requireNonNull(mapping, "invoice mapping cannot be null");
-    foreignKeys();
+    this.jdbc = Objects.requireNonNull(jdbc, "sqlite jdbc port cannot be null");
     new SqliteSchemaV1().bootstrap(connection);
   }
 
@@ -64,7 +69,7 @@ public final class SqliteInvoiceRepo implements InvoiceRepository {
   public List<StoredInvoice> list() {
     var invoices = new ArrayList<StoredInvoice>();
     try (
-      var stmt = connection.prepareStatement(
+      var stmt = jdbc.prepareStatement(
         "SELECT id FROM invoices ORDER BY issued_on DESC, number DESC"
       );
       var rs = stmt.executeQuery()
@@ -108,7 +113,7 @@ public final class SqliteInvoiceRepo implements InvoiceRepository {
 
   private void requireDraft(InvoiceStoreKey key) {
     try {
-      var stmt = connection.prepareStatement(
+      var stmt = jdbc.prepareStatement(
         """
         SELECT state FROM invoices WHERE id=? AND version=?
         """
@@ -130,33 +135,25 @@ public final class SqliteInvoiceRepo implements InvoiceRepository {
     }
   }
 
-  private void foreignKeys() {
-    try (var stmt = connection.createStatement()) {
-      stmt.execute("PRAGMA foreign_keys = ON");
-    } catch (SQLException ex) {
-      throw new IllegalStateException("foreign keys setup failed", ex);
-    }
-  }
-
   private void begin() {
-    try (var stmt = connection.createStatement()) {
-      stmt.execute("BEGIN IMMEDIATE");
+    try {
+      jdbc.execute("BEGIN IMMEDIATE");
     } catch (SQLException ex) {
       throw new IllegalStateException("invoice transaction begin failed", ex);
     }
   }
 
   private void commit() {
-    try (var stmt = connection.createStatement()) {
-      stmt.execute("COMMIT");
+    try {
+      jdbc.execute("COMMIT");
     } catch (SQLException ex) {
       throw new IllegalStateException("invoice transaction commit failed", ex);
     }
   }
 
   private void rollback() {
-    try (var stmt = connection.createStatement()) {
-      stmt.execute("ROLLBACK");
+    try {
+      jdbc.execute("ROLLBACK");
     } catch (SQLException ex) {
       throw new IllegalStateException("invoice transaction rollback failed", ex);
     }
@@ -164,7 +161,7 @@ public final class SqliteInvoiceRepo implements InvoiceRepository {
 
   private void insertHead(InvoiceHeadRow row) {
     try (
-      var stmt = connection.prepareStatement(
+      var stmt = jdbc.prepareStatement(
         """
         INSERT INTO invoices(
           id, number, currency_code, seller_name, seller_tax_id, seller_email,
@@ -183,7 +180,7 @@ public final class SqliteInvoiceRepo implements InvoiceRepository {
 
   private void updateHead(InvoiceHeadRow row, long expected) {
     try (
-      var stmt = connection.prepareStatement(
+      var stmt = jdbc.prepareStatement(
         """
         UPDATE invoices SET
           number=?, currency_code=?, seller_name=?, seller_tax_id=?, seller_email=?,
@@ -254,7 +251,7 @@ public final class SqliteInvoiceRepo implements InvoiceRepository {
   }
 
   private void deleteLines(String invoiceId) {
-    try (var stmt = connection.prepareStatement("DELETE FROM invoice_lines WHERE invoice_id=?")) {
+    try (var stmt = jdbc.prepareStatement("DELETE FROM invoice_lines WHERE invoice_id=?")) {
       stmt.setString(1, invoiceId);
       stmt.executeUpdate();
     } catch (SQLException ex) {
@@ -270,7 +267,7 @@ public final class SqliteInvoiceRepo implements InvoiceRepository {
 
   private void insertLine(InvoiceLineRow row) {
     try (
-      var stmt = connection.prepareStatement(
+      var stmt = jdbc.prepareStatement(
         """
         INSERT INTO invoice_lines(
           id, invoice_id, position, description, quantity_numerator,
@@ -301,7 +298,7 @@ public final class SqliteInvoiceRepo implements InvoiceRepository {
 
   private void insertTax(InvoiceTaxRow row) {
     try (
-      var stmt = connection.prepareStatement(
+      var stmt = jdbc.prepareStatement(
         """
         INSERT INTO invoice_taxes(
           id, invoice_line_id, tax_label, tax_rate_bps,
@@ -325,7 +322,7 @@ public final class SqliteInvoiceRepo implements InvoiceRepository {
 
   private void insertAudit(InvoiceAuditEvent event) {
     try (
-      var stmt = connection.prepareStatement(
+      var stmt = jdbc.prepareStatement(
         """
         INSERT INTO invoice_audit_events(
           invoice_id, event_type, invoice_version, occurred_at, detail
@@ -354,7 +351,7 @@ public final class SqliteInvoiceRepo implements InvoiceRepository {
 
   private Optional<InvoiceHeadRow> readHead(String id) {
     try {
-      var stmt = connection.prepareStatement(
+      var stmt = jdbc.prepareStatement(
         """
         SELECT * FROM invoices WHERE id=?
         """
@@ -401,7 +398,7 @@ public final class SqliteInvoiceRepo implements InvoiceRepository {
   private List<InvoiceLineRow> readLines(String invoiceId) {
     var rows = new ArrayList<InvoiceLineRow>();
     try (
-      var stmt = connection.prepareStatement(
+      var stmt = jdbc.prepareStatement(
         "SELECT * FROM invoice_lines WHERE invoice_id=? ORDER BY position"
       )
     ) {
@@ -429,7 +426,7 @@ public final class SqliteInvoiceRepo implements InvoiceRepository {
   private List<InvoiceTaxRow> readTaxes(String invoiceId) {
     var rows = new ArrayList<InvoiceTaxRow>();
     try (
-      var stmt = connection.prepareStatement(
+      var stmt = jdbc.prepareStatement(
         """
         SELECT t.* FROM invoice_taxes t
         JOIN invoice_lines l ON l.id=t.invoice_line_id

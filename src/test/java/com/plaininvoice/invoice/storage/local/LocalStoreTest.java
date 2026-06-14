@@ -1,19 +1,15 @@
 package com.plaininvoice.invoice.storage.local;
 
-import com.plaininvoice.invoice.storage.*;
-import com.plaininvoice.invoice.storage.backup.*;
 import com.plaininvoice.invoice.storage.sqlite.*;
-
-import static org.hamcrest.MatcherAssert.*;
-import static org.hamcrest.Matchers.*;
-import static org.junit.jupiter.api.Assertions.*;
-
 import java.lang.reflect.*;
 import java.nio.file.*;
 import java.sql.*;
 import java.time.*;
 import org.junit.jupiter.api.*;
 import org.junit.jupiter.api.io.*;
+import static org.hamcrest.MatcherAssert.*;
+import static org.hamcrest.Matchers.*;
+import static org.junit.jupiter.api.Assertions.*;
 
 final class LocalStoreTest {
 
@@ -41,6 +37,27 @@ final class LocalStoreTest {
     try (var store = new LocalStore(temp)) {
       store.connect();
       assertThat(Files.isRegularFile(store.database()), is(true));
+    }
+  }
+
+  @Test
+  void appliesForeignKeysAtStartup(@TempDir Path temp) throws Exception {
+    try (var store = new LocalStore(temp); var stmt = store.connect().createStatement(); var rs = stmt.executeQuery("PRAGMA foreign_keys")) {
+      assertThat(rs.next() && rs.getInt(1) == 1, is(true));
+    }
+  }
+
+  @Test
+  void appliesDeleteJournalModeAtStartup(@TempDir Path temp) throws Exception {
+    try (var store = new LocalStore(temp); var stmt = store.connect().createStatement(); var rs = stmt.executeQuery("PRAGMA journal_mode")) {
+      assertThat(rs.next() && "delete".equalsIgnoreCase(rs.getString(1)), is(true));
+    }
+  }
+
+  @Test
+  void appliesBusyTimeoutAtStartup(@TempDir Path temp) throws Exception {
+    try (var store = new LocalStore(temp); var stmt = store.connect().createStatement(); var rs = stmt.executeQuery("PRAGMA busy_timeout")) {
+      assertThat(rs.next() && rs.getInt(1) == store.busyTimeOut(), is(true));
     }
   }
 
@@ -106,6 +123,19 @@ final class LocalStoreTest {
     try (var store = new LocalStore(new StoreHome(temp, "store.sqlite"))) {
       assertThrows(IllegalStateException.class, store::connect);
     }
+  }
+
+  @Test
+  void rejectsCorruptDatabaseAtStartup(@TempDir Path temp) throws Exception {
+    Files.writeString(temp.resolve("plain-invoice.sqlite"), "not a database");
+    try (var store = new LocalStore(temp)) {
+      assertThrows(IllegalStateException.class, store::connect);
+    }
+  }
+
+  @Test
+  void rejectsNullConfig() {
+    assertThrows(NullPointerException.class, () -> new LocalStore(new StoreHome(Path.of("data")), null));
   }
 
   @Test
