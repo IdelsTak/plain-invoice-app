@@ -2,7 +2,6 @@ package com.plaininvoice.invoice.storage.local;
 
 import com.plaininvoice.invoice.storage.backup.*;
 import com.plaininvoice.invoice.storage.sqlite.*;
-import java.lang.reflect.*;
 import java.nio.file.*;
 import java.sql.*;
 import java.time.*;
@@ -159,47 +158,34 @@ final class LocalStoreTest {
   }
 
   @Test
+  void acceptsExplicitConfig(@TempDir Path temp) {
+    try (var store = new LocalStore(new StoreHome(temp), new SqliteConnectionConfig())) {
+      assertThat(store.database(), is(temp.resolve("plain-invoice.sqlite")));
+    }
+  }
+
+  @Test
   void reopensClosedConnection(@TempDir Path temp) throws Exception {
-    try (var store = new LocalStore(temp)) {
-      inject(store, proxy(true, false));
+    try (var store = new LocalStore(new StoreHome(temp), new SqliteConnectionConfig(), new FakeConnPort(true, false))) {
       assertThat(store.connect(), not(sameInstance(null)));
     }
   }
 
   @Test
-  void failsWhenCloseFails(@TempDir Path temp) throws Exception {
-    var store = new LocalStore(temp);
-    inject(store, proxy(false, true));
-    assertThrows(IllegalStateException.class, store::close);
-  }
-
-  private void inject(LocalStore store, Connection connection) throws Exception {
-    var field = LocalStore.class.getDeclaredField("connection");
-    field.setAccessible(true);
-    field.set(store, connection);
-  }
-
-  private Connection proxy(boolean closed, boolean closeFails) {
-    return (Connection) Proxy.newProxyInstance(
-      getClass().getClassLoader(),
-      new Class<?>[] { Connection.class },
-      (_, method, _) -> answer(method, closed, closeFails)
-    );
-  }
-
-  private Object answer(Method method, boolean closed, boolean closeFails) throws Throwable {
-    return switch (method.getName()) {
-      case "isClosed" -> closed;
-      case "close" -> close(closeFails);
-      default -> throw new UnsupportedOperationException(method.getName());
-    };
-  }
-
-  private Object close(boolean fails) throws SQLException {
-    if (fails) {
-      throw new SQLException("close failed");
+  void reopensWhenCachedConnCloses(@TempDir Path temp) throws Exception {
+    var port = new FlipConnPort();
+    try (var store = new LocalStore(new StoreHome(temp), new SqliteConnectionConfig(), port)) {
+      store.connect();
+      store.connect();
+      assertThat(port.opens(), is(2));
     }
-    return null;
+  }
+
+  @Test
+  void failsWhenCloseFails(@TempDir Path temp) throws Exception {
+    var store = new LocalStore(new StoreHome(temp), new SqliteConnectionConfig(), new FakeConnPort(false, true));
+    store.connect();
+    assertThrows(IllegalStateException.class, store::close);
   }
 
   private Instant now() {
@@ -239,6 +225,70 @@ final class LocalStoreTest {
       try (var rs = stmt.executeQuery()) {
         return rs.next();
       }
+    }
+  }
+
+  private static final class FakeConnPort implements StoreConnPort {
+    private final boolean closed;
+    private final boolean closeFails;
+    private final Connection token;
+
+    private FakeConnPort(boolean closed, boolean closeFails) throws SQLException {
+      this.closed = closed;
+      this.closeFails = closeFails;
+      this.token = DriverManager.getConnection("jdbc:sqlite::memory:");
+    }
+
+    @Override
+    public Connection open(Path database, SqliteConnectionConfig config) {
+      return token;
+    }
+
+    @Override
+    public boolean isClosed(Connection connection) {
+      return closed;
+    }
+
+    @Override
+    public void close(Connection connection) throws SQLException {
+      if (closeFails) {
+        throw new SQLException("close failed");
+      }
+      token.close();
+    }
+  }
+
+  private static final class FlipConnPort implements StoreConnPort {
+    private final Connection token;
+    private int opens;
+    private boolean first = true;
+
+    private FlipConnPort() throws SQLException {
+      this.token = DriverManager.getConnection("jdbc:sqlite::memory:");
+    }
+
+    @Override
+    public Connection open(Path database, SqliteConnectionConfig config) {
+      opens++;
+      return token;
+    }
+
+    @Override
+    public boolean isClosed(Connection connection) {
+      if (first) {
+        first = false;
+        return true;
+      }
+      return false;
+    }
+
+    @Override
+    public void close(Connection connection) throws SQLException {
+      token.close();
+    }
+
+    private int opens() {
+      return opens;
     }
   }
 }
