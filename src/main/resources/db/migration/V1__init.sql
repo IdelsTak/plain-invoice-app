@@ -50,6 +50,9 @@ CREATE TABLE IF NOT EXISTS invoice_audit_events (
   invoice_id TEXT NOT NULL,
   event_type TEXT NOT NULL CHECK (event_type IN ('CREATED','UPDATED','CONFLICT')),
   invoice_version INTEGER NOT NULL CHECK (invoice_version >= 0),
+  operation_id TEXT NOT NULL,
+  actor TEXT NOT NULL,
+  source TEXT NOT NULL,
   occurred_at TEXT NOT NULL,
   detail TEXT NOT NULL,
   FOREIGN KEY (invoice_id) REFERENCES invoices(id) ON DELETE RESTRICT

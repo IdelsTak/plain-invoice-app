@@ -7,6 +7,7 @@ import java.math.*;
 import java.sql.*;
 import java.time.*;
 import java.util.*;
+import java.util.function.*;
 import org.junit.jupiter.api.*;
 import static org.hamcrest.MatcherAssert.*;
 import static org.hamcrest.Matchers.*;
@@ -33,8 +34,32 @@ final class SqliteInvoiceRepoTest {
   @Test
   void writesCreateAuditVersion() throws Exception {
     try (var connection = open()) {
-      repo(connection).save(stored("inv-1", 0, invoice("CORE-00001", issuedOn(), money("12.00"))));
+      repo(connection, operationIds("op-1")).save(stored("inv-1", 0, invoice("CORE-00001", issuedOn(), money("12.00"))));
       assertThat(auditVersion(connection, "inv-1", 1), is(1L));
+    }
+  }
+
+  @Test
+  void writesCreateAuditOperationId() throws Exception {
+    try (var connection = open()) {
+      repo(connection, operationIds("op-1")).save(stored("inv-1", 0, invoice("CORE-00001", issuedOn(), money("12.00"))));
+      assertThat(auditOperationId(connection, "inv-1", 1), is("op-1"));
+    }
+  }
+
+  @Test
+  void writesCreateAuditActor() throws Exception {
+    try (var connection = open()) {
+      repo(connection).save(stored("inv-1", 0, invoice("CORE-00001", issuedOn(), money("12.00"))));
+      assertThat(auditActor(connection, "inv-1", 1), is("system"));
+    }
+  }
+
+  @Test
+  void writesCreateAuditSource() throws Exception {
+    try (var connection = open()) {
+      repo(connection).save(stored("inv-1", 0, invoice("CORE-00001", issuedOn(), money("12.00"))));
+      assertThat(auditSource(connection, "inv-1", 1), is("sqlite-repo"));
     }
   }
 
@@ -114,10 +139,20 @@ final class SqliteInvoiceRepoTest {
   @Test
   void appendsUpdateAuditEvent() throws Exception {
     try (var connection = open()) {
-      var repo = repo(connection);
+      var repo = repo(connection, operationIds("op-1", "op-2"));
       var saved = repo.save(stored("inv-1", 0, invoice("CORE-00001", issuedOn(), money("12.00"))));
       repo.save(new StoredInvoice(saved.meta(), invoice("CORE-00001", issuedOn(), money("15.00"))));
       assertThat(auditType(connection, "inv-1", 2), is("UPDATED"));
+    }
+  }
+
+  @Test
+  void appendsUpdateAuditOperationId() throws Exception {
+    try (var connection = open()) {
+      var repo = repo(connection, operationIds("op-1", "op-2"));
+      var saved = repo.save(stored("inv-1", 0, invoice("CORE-00001", issuedOn(), money("12.00"))));
+      repo.save(new StoredInvoice(saved.meta(), invoice("CORE-00001", issuedOn(), money("15.00"))));
+      assertThat(auditOperationId(connection, "inv-1", 2), is("op-2"));
     }
   }
 
@@ -209,7 +244,7 @@ final class SqliteInvoiceRepoTest {
   @Test
   void appendsConflictAuditEvent() throws Exception {
     try (var connection = open()) {
-      var repo = repo(connection);
+      var repo = repo(connection, operationIds("op-1", "op-2", "op-3"));
       var saved = repo.save(stored("inv-1", 0, invoice("CORE-00001", issuedOn(), money("12.00"))));
       repo.save(new StoredInvoice(saved.meta(), invoice("CORE-00001", issuedOn(), money("15.00"))));
       stale(repo, saved);
@@ -220,11 +255,46 @@ final class SqliteInvoiceRepoTest {
   @Test
   void recordsConflictReason() throws Exception {
     try (var connection = open()) {
-      var repo = repo(connection);
+      var repo = repo(connection, operationIds("op-1", "op-2", "op-3"));
       var saved = repo.save(stored("inv-1", 0, invoice("CORE-00001", issuedOn(), money("12.00"))));
       repo.save(new StoredInvoice(saved.meta(), invoice("CORE-00001", issuedOn(), money("15.00"))));
       stale(repo, saved);
       assertThat(auditDetail(connection, "inv-1", 3), is("invoice version conflict"));
+    }
+  }
+
+  @Test
+  void recordsConflictOperationId() throws Exception {
+    try (var connection = open()) {
+      var repo = repo(connection, operationIds("op-1", "op-2", "op-3"));
+      var saved = repo.save(stored("inv-1", 0, invoice("CORE-00001", issuedOn(), money("12.00"))));
+      repo.save(new StoredInvoice(saved.meta(), invoice("CORE-00001", issuedOn(), money("15.00"))));
+      stale(repo, saved);
+      assertThat(auditOperationId(connection, "inv-1", 3), is("op-3"));
+    }
+  }
+
+  @Test
+  void recordsConflictAuditSource() throws Exception {
+    try (var connection = open()) {
+      var repo = repo(connection);
+      var saved = repo.save(stored("inv-1", 0, invoice("CORE-00001", issuedOn(), money("12.00"))));
+      repo.save(new StoredInvoice(saved.meta(), invoice("CORE-00001", issuedOn(), money("15.00"))));
+      stale(repo, saved);
+      assertThat(auditSource(connection, "inv-1", 3), is("sqlite-repo"));
+    }
+  }
+
+  @Test
+  void writesConflictAuditInSeparateTransaction() throws Exception {
+    try (var connection = open()) {
+      var jdbc = new RecordingJdbcPort(connection);
+      var repo = repo(connection, jdbc, operationIds("op-1", "op-2", "op-3"));
+      var saved = repo.save(stored("inv-1", 0, invoice("CORE-00001", issuedOn(), money("12.00"))));
+      repo.save(new StoredInvoice(saved.meta(), invoice("CORE-00001", issuedOn(), money("15.00"))));
+      jdbc.clear();
+      stale(repo, saved);
+      assertThat(jdbc.executed(), is(List.of("BEGIN IMMEDIATE", "ROLLBACK", "BEGIN IMMEDIATE", "COMMIT")));
     }
   }
 
@@ -303,6 +373,36 @@ final class SqliteInvoiceRepoTest {
       repo.save(new StoredInvoice(saved.meta(), invoice("CORE-00001", issuedOn(), money("15.00"))));
       var failing = repo(connection, failing(connection, "INSERT INTO invoice_audit_events"));
       assertThrows(IllegalStateException.class, () -> failing.save(new StoredInvoice(saved.meta(), invoice("CORE-00001", issuedOn(), money("16.00")))));
+    }
+  }
+
+  @Test
+  void failsWhenConflictAuditBeginFails() throws Exception {
+    try (var connection = open()) {
+      new SqliteSchemaV1().bootstrap(connection);
+      insertInvoice(connection, "inv-1", "CORE-00001", 2);
+      var repo = repo(connection, new ConflictAuditJdbcPort(connection, 3, false), operationIds("op-1"));
+      assertThrows(IllegalStateException.class, () -> repo.save(stored("inv-1", 1, changed())));
+    }
+  }
+
+  @Test
+  void failsWhenConflictAuditCommitFails() throws Exception {
+    try (var connection = open()) {
+      new SqliteSchemaV1().bootstrap(connection);
+      insertInvoice(connection, "inv-1", "CORE-00001", 2);
+      var repo = repo(connection, new ConflictAuditJdbcPort(connection, 4, false), operationIds("op-1"));
+      assertThrows(IllegalStateException.class, () -> repo.save(stored("inv-1", 1, changed())));
+    }
+  }
+
+  @Test
+  void failsWhenConflictAuditRollbackFails() throws Exception {
+    try (var connection = open()) {
+      new SqliteSchemaV1().bootstrap(connection);
+      insertInvoice(connection, "inv-1", "CORE-00001", 2);
+      var repo = repo(connection, new ConflictAuditJdbcPort(connection, 4, true), operationIds("op-1"));
+      assertThrows(IllegalStateException.class, () -> repo.save(stored("inv-1", 1, changed())));
     }
   }
 
@@ -419,6 +519,13 @@ final class SqliteInvoiceRepoTest {
   }
 
   @Test
+  void rejectsNullOperationIds() throws Exception {
+    try (var connection = open()) {
+      assertThrows(NullPointerException.class, () -> new SqliteInvoiceRepo(connection, new InvoiceMapping(), new JdbcSqliteRepoPort(connection), null));
+    }
+  }
+
+  @Test
   void rejectsNullSave() throws Exception {
     try (var connection = open()) {
       assertThrows(NullPointerException.class, () -> repo(connection).save(null));
@@ -444,7 +551,15 @@ final class SqliteInvoiceRepoTest {
   }
 
   private SqliteInvoiceRepo repo(Connection connection, SqliteRepoJdbcPort jdbc) {
-    return new SqliteInvoiceRepo(connection, new InvoiceMapping(), jdbc);
+    return repo(connection, jdbc, operationIds("op-1", "op-2", "op-3", "op-4", "op-5"));
+  }
+
+  private SqliteInvoiceRepo repo(Connection connection, Supplier<String> operationIds) {
+    return new SqliteInvoiceRepo(connection, new InvoiceMapping(), new JdbcSqliteRepoPort(connection), operationIds);
+  }
+
+  private SqliteInvoiceRepo repo(Connection connection, SqliteRepoJdbcPort jdbc, Supplier<String> operationIds) {
+    return new SqliteInvoiceRepo(connection, new InvoiceMapping(), jdbc, operationIds);
   }
 
   private Connection open() throws Exception {
@@ -595,6 +710,18 @@ final class SqliteInvoiceRepoTest {
     return auditText(connection, id, sequence, "detail");
   }
 
+  private String auditOperationId(Connection connection, String id, int sequence) throws Exception {
+    return auditText(connection, id, sequence, "operation_id");
+  }
+
+  private String auditActor(Connection connection, String id, int sequence) throws Exception {
+    return auditText(connection, id, sequence, "actor");
+  }
+
+  private String auditSource(Connection connection, String id, int sequence) throws Exception {
+    return auditText(connection, id, sequence, "source");
+  }
+
   private long auditVersion(Connection connection, String id, int sequence) throws Exception {
     try (
       var stmt = connection.prepareStatement(
@@ -642,6 +769,38 @@ final class SqliteInvoiceRepoTest {
       stmt.executeUpdate();
     }
   }
+
+  private void insertInvoice(Connection connection, String id, String number, long version) throws Exception {
+    try (
+      var stmt = connection.prepareStatement(
+        """
+        INSERT INTO invoices(
+          id, number, currency_code, seller_name, seller_tax_id, seller_email,
+          buyer_name, buyer_tax_id, buyer_email, issued_on, due_date, payment_note,
+          state, voided_at, voided_reason, version, created_at, updated_at
+        ) VALUES(?, ?, 'USD', 'Seller Ltd', 'SELLER-TAX', 'seller@example.com',
+          'Buyer Ltd', 'BUYER-TAX', 'buyer@example.com', '2026-05-24', '2026-06-23', 'Net 30',
+          'DRAFT', NULL, NULL, ?, '2026-05-24T10:15:30Z', '2026-05-24T10:15:30Z')
+        """
+      )
+    ) {
+      stmt.setString(1, id);
+      stmt.setString(2, number);
+      stmt.setLong(3, version);
+      stmt.executeUpdate();
+    }
+  }
+
+  private Supplier<String> operationIds(String... ids) {
+    var values = new ArrayDeque<>(List.of(ids));
+    return () -> {
+      if (values.isEmpty()) {
+        throw new AssertionError("missing audit operation id");
+      }
+      return values.removeFirst();
+    };
+  }
+
   private static final class FailingJdbcPort implements SqliteRepoJdbcPort {
       private final Connection connection;
       private final Set<String> tokens;
@@ -676,6 +835,68 @@ final class SqliteInvoiceRepoTest {
               }
           }
           return false;
+      }
+  }
+
+  private static final class RecordingJdbcPort implements SqliteRepoJdbcPort {
+      private final Connection connection;
+      private final List<String> executed = new ArrayList<>();
+
+      private RecordingJdbcPort(Connection connection) {
+          this.connection = connection;
+      }
+
+      @Override
+      public void execute(String sql) throws SQLException {
+          executed.add(sql);
+          try (var stmt = connection.createStatement()) {
+              stmt.execute(sql);
+          }
+      }
+
+      @Override
+      public PreparedStatement prepareStatement(String sql) throws SQLException {
+          return connection.prepareStatement(sql);
+      }
+
+      private List<String> executed() {
+          return List.copyOf(executed);
+      }
+
+      private void clear() {
+          executed.clear();
+      }
+  }
+
+  private static final class ConflictAuditJdbcPort implements SqliteRepoJdbcPort {
+      private final Connection connection;
+      private final int failExecuteCall;
+      private final boolean failConflictInsert;
+      private int executeCalls;
+
+      private ConflictAuditJdbcPort(Connection connection, int failExecuteCall, boolean failConflictInsert) {
+          this.connection = connection;
+          this.failExecuteCall = failExecuteCall;
+          this.failConflictInsert = failConflictInsert;
+      }
+
+      @Override
+      public void execute(String sql) throws SQLException {
+          executeCalls++;
+          if (executeCalls == failExecuteCall) {
+              throw new SQLException("forced sql failure");
+          }
+          try (var stmt = connection.createStatement()) {
+              stmt.execute(sql);
+          }
+      }
+
+      @Override
+      public PreparedStatement prepareStatement(String sql) throws SQLException {
+          if (failConflictInsert && executeCalls >= 3 && sql.contains("INSERT INTO invoice_audit_events")) {
+              throw new SQLException("forced sql failure");
+          }
+          return connection.prepareStatement(sql);
       }
   }
 }

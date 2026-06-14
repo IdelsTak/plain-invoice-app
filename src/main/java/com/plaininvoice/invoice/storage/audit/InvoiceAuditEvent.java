@@ -3,11 +3,12 @@ package com.plaininvoice.invoice.storage.audit;
 import java.time.*;
 import java.util.*;
 
-public record InvoiceAuditEvent(String invoiceId, long version, Instant occurredAt, InvoiceAuditKind kind, String detail) {
+public record InvoiceAuditEvent(String invoiceId, long version, Instant occurredAt, InvoiceAuditKind kind, AuditTrace trace, String detail) {
   public InvoiceAuditEvent {
     Objects.requireNonNull(invoiceId, "audit invoice id cannot be null");
     Objects.requireNonNull(occurredAt, "audit timestamp cannot be null");
     Objects.requireNonNull(kind, "audit kind cannot be null");
+    Objects.requireNonNull(trace, "audit trace cannot be null");
     detail = detail == null ? "" : detail.trim();
     invoiceId = invoiceId.trim();
     if (invoiceId.isEmpty()) {

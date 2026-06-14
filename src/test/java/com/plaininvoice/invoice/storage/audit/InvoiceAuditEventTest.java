@@ -30,7 +30,20 @@ final class InvoiceAuditEventTest {
     assertThrows(IllegalArgumentException.class, () -> event("inv-1", -1, "created"));
   }
 
+  @Test
+  void rejectsNullTrace() {
+    assertThrows(NullPointerException.class, () ->
+      new InvoiceAuditEvent("inv-1", 1, Instant.parse("2026-05-24T10:15:30Z"), new InvoiceAuditKind.Created(), null, "created"));
+  }
+
   private InvoiceAuditEvent event(String id, long version, String detail) {
-    return new InvoiceAuditEvent(id, version, Instant.parse("2026-05-24T10:15:30Z"), new InvoiceAuditKind.Created(), detail);
+    return new InvoiceAuditEvent(
+      id,
+      version,
+      Instant.parse("2026-05-24T10:15:30Z"),
+      new InvoiceAuditKind.Created(),
+      new AuditTrace("op-1", new AuditOrigin("system", "sqlite-repo")),
+      detail
+    );
   }
 }
