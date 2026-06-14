@@ -165,6 +165,9 @@ Columns:
 - `invoice_id` TEXT NOT NULL
 - `event_type` TEXT NOT NULL
 - `invoice_version` INTEGER NOT NULL
+- `operation_id` TEXT NOT NULL
+- `actor` TEXT NOT NULL
+- `source` TEXT NOT NULL
 - `occurred_at` TEXT NOT NULL
 - `detail` TEXT NOT NULL
 
@@ -172,8 +175,11 @@ Foreign keys:
 - `invoice_id` -> `invoices(id)` ON DELETE RESTRICT
 
 Rules:
+- each repository `save` attempt generates one `operation_id`; every audit row emitted by that attempt uses the same correlation value.
+- until UI identity exists, repository-written audit rows use internal metadata: `actor='system'` and `source='sqlite-repo'`.
 - create/update audit rows are written in the same transaction as the invoice mutation.
 - stale-version conflict rows are appended after rollback so the conflict is still observable.
+- conflict audit rows use a separate transaction boundary: rollback the failed write transaction first, then open a new `BEGIN IMMEDIATE` transaction for the conflict audit insert, then commit or roll back that audit transaction independently.
 - update/delete triggers prevent normal mutation of audit rows.
 
 ## Mermaid ER model

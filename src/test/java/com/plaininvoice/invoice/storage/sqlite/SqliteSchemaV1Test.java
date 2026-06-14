@@ -43,6 +43,30 @@ final class SqliteSchemaV1Test {
   }
 
   @Test
+  void createsAuditOperationIdColumn() throws Exception {
+    try (var connection = open()) {
+      new SqliteSchemaV1().bootstrap(connection);
+      assertThat(columnExists(connection, "invoice_audit_events", "operation_id"), is(true));
+    }
+  }
+
+  @Test
+  void createsAuditActorColumn() throws Exception {
+    try (var connection = open()) {
+      new SqliteSchemaV1().bootstrap(connection);
+      assertThat(columnExists(connection, "invoice_audit_events", "actor"), is(true));
+    }
+  }
+
+  @Test
+  void createsAuditSourceColumn() throws Exception {
+    try (var connection = open()) {
+      new SqliteSchemaV1().bootstrap(connection);
+      assertThat(columnExists(connection, "invoice_audit_events", "source"), is(true));
+    }
+  }
+
+  @Test
   void rejectsNullConnection() {
     assertThrows(NullPointerException.class, () -> new SqliteSchemaV1().bootstrap(null));
   }
@@ -436,8 +460,9 @@ final class SqliteSchemaV1Test {
     try (
       var stmt = connection.prepareStatement(
         """
-        INSERT INTO invoice_audit_events(invoice_id, event_type, invoice_version, occurred_at, detail)
-        VALUES(?, ?, 1, '2026-05-24T00:00:00Z', 'test')
+        INSERT INTO invoice_audit_events(
+          invoice_id, event_type, invoice_version, operation_id, actor, source, occurred_at, detail
+        ) VALUES(?, ?, 1, 'op-1', 'system', 'sqlite-repo', '2026-05-24T00:00:00Z', 'test')
         """
       )
     ) {

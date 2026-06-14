@@ -1,7 +1,5 @@
 package com.plaininvoice.invoice.storage.sqlite;
 
-import com.plaininvoice.invoice.storage.*;
-
 import java.nio.charset.*;
 import java.sql.*;
 import java.util.*;
