@@ -48,7 +48,10 @@ Contract notes:
   - `created_at=<ISO-8601 instant>`
   - `database_name=<configured database file name>`
   - `schema_version=1`
-- Restore flows must check `format` and `schema_version` before replacing or importing a local store.
+  - `database_sha256=<SHA-256 of archived SQLite snapshot bytes>`
+- Restore flows must check `format`, `schema_version`, and `database_sha256` before replacing or importing a local store.
+- Restore validation unpacks the archived snapshot into temporary staging, verifies the SHA-256 checksum, opens the staged SQLite file, and requires `PRAGMA integrity_check(1)` to return `ok` before the active store can be replaced.
+- Restore dry-run mode performs the same archive, compatibility, checksum, and SQLite integrity validation but makes no persistent filesystem changes to the active store.
 
 ## Local settings
 - Seller profile and invoice defaults live in the application/settings slice as immutable records.

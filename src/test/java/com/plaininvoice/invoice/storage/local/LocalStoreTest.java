@@ -1,7 +1,7 @@
 package com.plaininvoice.invoice.storage.local;
 
+import com.plaininvoice.invoice.storage.backup.*;
 import com.plaininvoice.invoice.storage.sqlite.*;
-import java.lang.reflect.*;
 import java.nio.file.*;
 import java.sql.*;
 import java.time.*;
@@ -94,6 +94,25 @@ final class LocalStoreTest {
   }
 
   @Test
+  void restoresBackup(@TempDir Path temp) throws Exception {
+    var archive = archive(temp.resolve("source"));
+    try (var store = new LocalStore(temp.resolve("target"))) {
+      store.restore(archive.path(), false);
+      assertThat(sampleValue(store.database()), is("saved"));
+    }
+  }
+
+  @Test
+  void dryRunRestoreKeepsExistingStore(@TempDir Path temp) throws Exception {
+    var archive = archive(temp.resolve("source"));
+    writeSample(temp.resolve("target").resolve("plain-invoice.sqlite"), "stale");
+    try (var store = new LocalStore(temp.resolve("target"))) {
+      store.restore(archive.path(), true);
+      assertThat(sampleValue(store.database()), is("stale"));
+    }
+  }
+
+  @Test
   void bootstrapsSchema(@TempDir Path temp) throws Exception {
     try (var store = new LocalStore(temp)) {
       store.invoices();
@@ -139,51 +158,66 @@ final class LocalStoreTest {
   }
 
   @Test
+  void acceptsExplicitConfig(@TempDir Path temp) {
+    try (var store = new LocalStore(new StoreHome(temp), new SqliteConnectionConfig())) {
+      assertThat(store.database(), is(temp.resolve("plain-invoice.sqlite")));
+    }
+  }
+
+  @Test
   void reopensClosedConnection(@TempDir Path temp) throws Exception {
-    try (var store = new LocalStore(temp)) {
-      inject(store, proxy(true, false));
+    try (var store = new LocalStore(new StoreHome(temp), new SqliteConnectionConfig(), new FakeConnPort(true, false))) {
       assertThat(store.connect(), not(sameInstance(null)));
     }
   }
 
   @Test
-  void failsWhenCloseFails(@TempDir Path temp) throws Exception {
-    var store = new LocalStore(temp);
-    inject(store, proxy(false, true));
-    assertThrows(IllegalStateException.class, store::close);
-  }
-
-  private void inject(LocalStore store, Connection connection) throws Exception {
-    var field = LocalStore.class.getDeclaredField("connection");
-    field.setAccessible(true);
-    field.set(store, connection);
-  }
-
-  private Connection proxy(boolean closed, boolean closeFails) {
-    return (Connection) Proxy.newProxyInstance(
-      getClass().getClassLoader(),
-      new Class<?>[] { Connection.class },
-      (_, method, _) -> answer(method, closed, closeFails)
-    );
-  }
-
-  private Object answer(Method method, boolean closed, boolean closeFails) throws Throwable {
-    return switch (method.getName()) {
-      case "isClosed" -> closed;
-      case "close" -> close(closeFails);
-      default -> throw new UnsupportedOperationException(method.getName());
-    };
-  }
-
-  private Object close(boolean fails) throws SQLException {
-    if (fails) {
-      throw new SQLException("close failed");
+  void reopensWhenCachedConnCloses(@TempDir Path temp) throws Exception {
+    var port = new FlipConnPort();
+    try (var store = new LocalStore(new StoreHome(temp), new SqliteConnectionConfig(), port)) {
+      store.connect();
+      store.connect();
+      assertThat(port.opens(), is(2));
     }
-    return null;
+  }
+
+  @Test
+  void failsWhenCloseFails(@TempDir Path temp) throws Exception {
+    var store = new LocalStore(new StoreHome(temp), new SqliteConnectionConfig(), new FakeConnPort(false, true));
+    store.connect();
+    assertThrows(IllegalStateException.class, store::close);
   }
 
   private Instant now() {
     return Instant.parse("2026-05-24T10:15:30Z");
+  }
+
+  private StoreBackupArchive archive(Path temp) throws Exception {
+    var home = new StoreHome(temp.resolve("store"));
+    Files.createDirectories(home.directory());
+    writeSample(home.database(), "saved");
+    return new CreateStoreBackup().execute(new StoreBackupRequest(home, temp.resolve("backups"), now()));
+  }
+
+  private void writeSample(Path database, String value) throws Exception {
+    Files.createDirectories(database.getParent());
+    try (var connection = DriverManager.getConnection("jdbc:sqlite:" + database.toAbsolutePath())) {
+      try (var stmt = connection.createStatement()) {
+        stmt.execute("CREATE TABLE sample(id INTEGER PRIMARY KEY, name TEXT NOT NULL)");
+        stmt.execute("INSERT INTO sample(name) VALUES('" + value + "')");
+      }
+    }
+  }
+
+  private String sampleValue(Path database) throws Exception {
+    try (var connection = DriverManager.getConnection("jdbc:sqlite:" + database.toAbsolutePath())) {
+      try (var stmt = connection.prepareStatement("SELECT name FROM sample")) {
+        try (var rs = stmt.executeQuery()) {
+          rs.next();
+          return rs.getString(1);
+        }
+      }
+    }
   }
 
   private boolean tableExists(LocalStore store) throws Exception {
@@ -191,6 +225,70 @@ final class LocalStoreTest {
       try (var rs = stmt.executeQuery()) {
         return rs.next();
       }
+    }
+  }
+
+  private static final class FakeConnPort implements StoreConnPort {
+    private final boolean closed;
+    private final boolean closeFails;
+    private final Connection token;
+
+    private FakeConnPort(boolean closed, boolean closeFails) throws SQLException {
+      this.closed = closed;
+      this.closeFails = closeFails;
+      this.token = DriverManager.getConnection("jdbc:sqlite::memory:");
+    }
+
+    @Override
+    public Connection open(Path database, SqliteConnectionConfig config) {
+      return token;
+    }
+
+    @Override
+    public boolean isClosed(Connection connection) {
+      return closed;
+    }
+
+    @Override
+    public void close(Connection connection) throws SQLException {
+      if (closeFails) {
+        throw new SQLException("close failed");
+      }
+      token.close();
+    }
+  }
+
+  private static final class FlipConnPort implements StoreConnPort {
+    private final Connection token;
+    private int opens;
+    private boolean first = true;
+
+    private FlipConnPort() throws SQLException {
+      this.token = DriverManager.getConnection("jdbc:sqlite::memory:");
+    }
+
+    @Override
+    public Connection open(Path database, SqliteConnectionConfig config) {
+      opens++;
+      return token;
+    }
+
+    @Override
+    public boolean isClosed(Connection connection) {
+      if (first) {
+        first = false;
+        return true;
+      }
+      return false;
+    }
+
+    @Override
+    public void close(Connection connection) throws SQLException {
+      token.close();
+    }
+
+    private int opens() {
+      return opens;
     }
   }
 }
