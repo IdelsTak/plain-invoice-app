@@ -335,6 +335,8 @@ flowchart TD
 ## Indexing strategy
 - unique index on `invoices(number)`
 - index on `invoices(state)`
+- index on `invoices(created_at)` for local maintenance/history scans ordered or filtered by creation time
+- index on `invoices(updated_at)` for recent-change UI lists and maintenance queries ordered or filtered by last update time
 - partial index on unpaid-active set:
   - `CREATE INDEX idx_invoices_unpaid_due ON invoices(due_date) WHERE state NOT IN ('PAID','VOID')`
 - index on `invoice_lines(invoice_id)`

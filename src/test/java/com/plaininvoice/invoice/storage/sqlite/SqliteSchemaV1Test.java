@@ -43,6 +43,22 @@ final class SqliteSchemaV1Test {
   }
 
   @Test
+  void createsInvoiceCreatedAtIndex() throws Exception {
+    try (var connection = open()) {
+      new SqliteSchemaV1().bootstrap(connection);
+      assertThat(indexExists(connection, "idx_invoices_created_at"), is(true));
+    }
+  }
+
+  @Test
+  void createsInvoiceUpdatedAtIndex() throws Exception {
+    try (var connection = open()) {
+      new SqliteSchemaV1().bootstrap(connection);
+      assertThat(indexExists(connection, "idx_invoices_updated_at"), is(true));
+    }
+  }
+
+  @Test
   void createsAuditOperationIdColumn() throws Exception {
     try (var connection = open()) {
       new SqliteSchemaV1().bootstrap(connection);
@@ -321,6 +337,15 @@ final class SqliteSchemaV1Test {
     try (var stmt = connection.prepareStatement("SELECT name FROM pragma_table_info(?) WHERE name=?")) {
       stmt.setString(1, table);
       stmt.setString(2, column);
+      try (var rs = stmt.executeQuery()) {
+        return rs.next();
+      }
+    }
+  }
+
+  private boolean indexExists(Connection connection, String index) throws Exception {
+    try (var stmt = connection.prepareStatement("SELECT name FROM sqlite_master WHERE type='index' AND name=?")) {
+      stmt.setString(1, index);
       try (var rs = stmt.executeQuery()) {
         return rs.next();
       }

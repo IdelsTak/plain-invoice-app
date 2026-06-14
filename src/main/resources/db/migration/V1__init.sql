@@ -101,6 +101,8 @@ END;
 CREATE INDEX IF NOT EXISTS idx_invoices_state ON invoices(state);
 CREATE INDEX IF NOT EXISTS idx_invoices_issued_on ON invoices(issued_on);
 CREATE INDEX IF NOT EXISTS idx_invoices_unpaid_due ON invoices(due_date) WHERE state NOT IN ('PAID','VOID');
+CREATE INDEX IF NOT EXISTS idx_invoices_created_at ON invoices(created_at);
+CREATE INDEX IF NOT EXISTS idx_invoices_updated_at ON invoices(updated_at);
 CREATE INDEX IF NOT EXISTS idx_invoice_lines_invoice_id ON invoice_lines(invoice_id);
 CREATE INDEX IF NOT EXISTS idx_invoice_taxes_line_id ON invoice_taxes(invoice_line_id);
 CREATE INDEX IF NOT EXISTS idx_invoice_audit_invoice_id ON invoice_audit_events(invoice_id);
