@@ -277,7 +277,11 @@ final class SqliteSchemaV1Test {
   }
 
   private Connection open() throws Exception {
-    return DriverManager.getConnection("jdbc:sqlite::memory:");
+    var connection = DriverManager.getConnection("jdbc:sqlite::memory:");
+    try (var stmt = connection.createStatement()) {
+      stmt.execute("PRAGMA foreign_keys = ON");
+    }
+    return connection;
   }
 
   private boolean tableExists(Connection connection, String table) throws Exception {

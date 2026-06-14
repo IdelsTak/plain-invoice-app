@@ -6,7 +6,7 @@ This document defines the persistence design for local invoice storage before ad
 ## Storage model
 - Engine: SQLite
 - Data shape: normalized relational tables
-- Source of truth: relational records with foreign keys enabled on each connection (`PRAGMA foreign_keys = ON`)
+- Source of truth: relational records with an explicit startup connection contract
 - Write mode: transactions opened with `BEGIN IMMEDIATE` for write flows
 - Precision: never use floating-point for money values
 
@@ -15,8 +15,25 @@ This document defines the persistence design for local invoice storage before ad
 - The default database file name is `plain-invoice.sqlite`.
 - The lifecycle object creates the storage directory before opening SQLite.
 - The lifecycle object owns the JDBC connection and closes it on application shutdown.
+- The lifecycle object configures and validates the SQLite connection before repository bootstrap.
 - Repository adapters receive an already opened connection and remain focused on invoice persistence.
 - Startup failures are reported as explicit `IllegalStateException` failures for directory setup or database open errors.
+
+## SQLite connection contract
+The local store startup sequence must apply and verify these connection requirements before any schema bootstrap or repository write:
+
+| Setting | Required value | Reason |
+|---|---|---|
+| `PRAGMA foreign_keys` | `ON` | parent-child integrity must be enforced on every connection |
+| `PRAGMA journal_mode` | `DELETE` | keep the default rollback journal model explicit and avoid WAL sidecars, checkpoint work, and restore ambiguity for a single-process desktop store |
+| `PRAGMA busy_timeout` | `5000` ms | bound lock waits so `BEGIN IMMEDIATE` and backup/open races fail predictably instead of spinning indefinitely |
+| `PRAGMA quick_check(1)` | `ok` | reject corrupt or non-SQLite files during startup before repository work begins |
+
+Contract notes:
+- WAL is not used in v1. The store must remain a single database file plus transient rollback journal behavior managed by SQLite.
+- Because WAL is disabled, the application does not manage checkpoints and does not rely on `-wal` or `-shm` sidecar files being preserved during backup or restore.
+- Backup/restore flows operate on the main database file and SQLite backup API output; no extra checkpoint step is required before creating a backup archive.
+- Any failure to apply or verify the connection contract is a startup failure and must abort store open with `IllegalStateException`.
 
 ## Backup archives
 - Backups are produced from the configured local `StoreHome`.

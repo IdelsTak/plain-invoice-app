@@ -1,19 +1,16 @@
 package com.plaininvoice.invoice.storage.sqlite;
 
-import com.plaininvoice.invoice.storage.*;
-
-import static org.hamcrest.MatcherAssert.*;
-import static org.hamcrest.Matchers.*;
-import static org.junit.jupiter.api.Assertions.*;
-
 import com.plaininvoice.invoice.lifecycle.*;
 import com.plaininvoice.invoice.pricing.*;
-import java.lang.reflect.*;
+import com.plaininvoice.invoice.storage.*;
 import java.math.*;
 import java.sql.*;
 import java.time.*;
 import java.util.*;
 import org.junit.jupiter.api.*;
+import static org.hamcrest.MatcherAssert.*;
+import static org.hamcrest.Matchers.*;
+import static org.junit.jupiter.api.Assertions.*;
 
 final class SqliteInvoiceRepoTest {
 
@@ -249,16 +246,9 @@ final class SqliteInvoiceRepoTest {
   }
 
   @Test
-  void failsWhenForeignKeysFail() throws Exception {
-    try (var connection = open()) {
-      assertThrows(IllegalStateException.class, () -> repo(failing(connection, "PRAGMA foreign_keys")));
-    }
-  }
-
-  @Test
   void failsWhenBeginFails() throws Exception {
     try (var connection = open()) {
-      var repo = repo(failing(connection, "BEGIN IMMEDIATE"));
+      var repo = repo(connection, failing(connection, "BEGIN IMMEDIATE"));
       assertThrows(IllegalStateException.class, () -> repo.save(stored("inv-1", 0, invoice("CORE-00001", issuedOn(), money("12.00")))));
     }
   }
@@ -266,7 +256,7 @@ final class SqliteInvoiceRepoTest {
   @Test
   void failsWhenCommitFails() throws Exception {
     try (var connection = open()) {
-      var repo = repo(failing(connection, "COMMIT"));
+      var repo = repo(connection, failing(connection, "COMMIT"));
       assertThrows(IllegalStateException.class, () -> repo.save(stored("inv-1", 0, invoice("CORE-00001", issuedOn(), money("12.00")))));
     }
   }
@@ -274,7 +264,7 @@ final class SqliteInvoiceRepoTest {
   @Test
   void failsWhenRollbackFails() throws Exception {
     try (var connection = open()) {
-      var repo = repo(failing(connection, "INSERT INTO invoice_lines", "ROLLBACK"));
+      var repo = repo(connection, failing(connection, "INSERT INTO invoice_lines", "ROLLBACK"));
       assertThrows(IllegalStateException.class, () -> repo.save(stored("inv-1", 0, invoice("CORE-00001", issuedOn(), money("12.00")))));
     }
   }
@@ -282,7 +272,7 @@ final class SqliteInvoiceRepoTest {
   @Test
   void failsWhenDeleteFails() throws Exception {
     try (var connection = open()) {
-      var repo = repo(failing(connection, "DELETE FROM invoice_lines"));
+      var repo = repo(connection, failing(connection, "DELETE FROM invoice_lines"));
       var saved = repo.save(stored("inv-1", 0, invoice("CORE-00001", issuedOn(), money("12.00"))));
       assertThrows(IllegalStateException.class, () -> repo.save(new StoredInvoice(saved.meta(), invoice("CORE-00001", issuedOn(), money("15.00")))));
     }
@@ -293,14 +283,14 @@ final class SqliteInvoiceRepoTest {
     try (var connection = open()) {
       var repo = repo(connection);
       var saved = repo.save(stored("inv-1", 0, invoice("CORE-00001", issuedOn(), money("12.00"))));
-      assertThrows(IllegalStateException.class, () -> repo(failing(connection, "SELECT state FROM invoices")).save(new StoredInvoice(saved.meta(), changed())));
+      assertThrows(IllegalStateException.class, () -> repo(connection, failing(connection, "SELECT state FROM invoices")).save(new StoredInvoice(saved.meta(), changed())));
     }
   }
 
   @Test
   void failsWhenTaxInsertFails() throws Exception {
     try (var connection = open()) {
-      var repo = repo(failing(connection, "INSERT INTO invoice_taxes"));
+      var repo = repo(connection, failing(connection, "INSERT INTO invoice_taxes"));
       assertThrows(IllegalStateException.class, () -> repo.save(stored("inv-1", 0, invoice("CORE-00001", issuedOn(), money("12.00")))));
     }
   }
@@ -311,7 +301,7 @@ final class SqliteInvoiceRepoTest {
       var repo = repo(connection);
       var saved = repo.save(stored("inv-1", 0, invoice("CORE-00001", issuedOn(), money("12.00"))));
       repo.save(new StoredInvoice(saved.meta(), invoice("CORE-00001", issuedOn(), money("15.00"))));
-      var failing = repo(failing(connection, "INSERT INTO invoice_audit_events"));
+      var failing = repo(connection, failing(connection, "INSERT INTO invoice_audit_events"));
       assertThrows(IllegalStateException.class, () -> failing.save(new StoredInvoice(saved.meta(), invoice("CORE-00001", issuedOn(), money("16.00")))));
     }
   }
@@ -319,7 +309,7 @@ final class SqliteInvoiceRepoTest {
   @Test
   void failsWhenListFails() throws Exception {
     try (var connection = open()) {
-      var repo = repo(failing(connection, "SELECT id FROM invoices"));
+      var repo = repo(connection, failing(connection, "SELECT id FROM invoices"));
       assertThrows(IllegalStateException.class, repo::list);
     }
   }
@@ -327,7 +317,7 @@ final class SqliteInvoiceRepoTest {
   @Test
   void failsWhenLoadFails() throws Exception {
     try (var connection = open()) {
-      var repo = repo(failing(connection, "SELECT * FROM invoices"));
+      var repo = repo(connection, failing(connection, "SELECT * FROM invoices"));
       assertThrows(IllegalStateException.class, () -> repo.load("inv-1"));
     }
   }
@@ -337,7 +327,7 @@ final class SqliteInvoiceRepoTest {
     try (var connection = open()) {
       var repo = repo(connection);
       repo.save(stored("inv-1", 0, invoice("CORE-00001", issuedOn(), money("12.00"))));
-      assertThrows(IllegalStateException.class, () -> repo(failing(connection, "SELECT * FROM invoice_lines")).load("inv-1"));
+      assertThrows(IllegalStateException.class, () -> repo(connection, failing(connection, "SELECT * FROM invoice_lines")).load("inv-1"));
     }
   }
 
@@ -346,7 +336,7 @@ final class SqliteInvoiceRepoTest {
     try (var connection = open()) {
       var repo = repo(connection);
       repo.save(stored("inv-1", 0, invoice("CORE-00001", issuedOn(), money("12.00"))));
-      assertThrows(IllegalStateException.class, () -> repo(failing(connection, "SELECT t.* FROM invoice_taxes")).load("inv-1"));
+      assertThrows(IllegalStateException.class, () -> repo(connection, failing(connection, "SELECT t.* FROM invoice_taxes")).load("inv-1"));
     }
   }
 
@@ -453,58 +443,20 @@ final class SqliteInvoiceRepoTest {
     return new SqliteInvoiceRepo(connection);
   }
 
+  private SqliteInvoiceRepo repo(Connection connection, SqliteRepoJdbcPort jdbc) {
+    return new SqliteInvoiceRepo(connection, new InvoiceMapping(), jdbc);
+  }
+
   private Connection open() throws Exception {
-    return DriverManager.getConnection("jdbc:sqlite::memory:");
-  }
-
-  private Connection failing(Connection connection, String... tokens) {
-    return (Connection) Proxy.newProxyInstance(
-      Connection.class.getClassLoader(),
-      new Class<?>[] {Connection.class},
-      (_, method, args) -> connectionCall(connection, method, args, tokens)
-    );
-  }
-
-  private Object connectionCall(Connection connection, Method method, Object[] args, String[] tokens) throws Throwable {
-    if ("createStatement".equals(method.getName())) {
-      return statement((Statement) invoke(method, connection, args), tokens);
+    var connection = DriverManager.getConnection("jdbc:sqlite::memory:");
+    try (var stmt = connection.createStatement()) {
+      stmt.execute("PRAGMA foreign_keys = ON");
     }
-    if ("prepareStatement".equals(method.getName()) && matches((String) args[0], tokens)) {
-      throw new SQLException("forced sql failure");
-    }
-    return invoke(method, connection, args);
+    return connection;
   }
 
-  private Statement statement(Statement statement, String[] tokens) {
-    return (Statement) Proxy.newProxyInstance(
-      Statement.class.getClassLoader(),
-      new Class<?>[] {Statement.class},
-      (_, method, args) -> statementCall(statement, method, args, tokens)
-    );
-  }
-
-  private Object statementCall(Statement statement, Method method, Object[] args, String[] tokens) throws Throwable {
-    if ("execute".equals(method.getName()) && matches((String) args[0], tokens)) {
-      throw new SQLException("forced sql failure");
-    }
-    return invoke(method, statement, args);
-  }
-
-  private Object invoke(Method method, Object target, Object[] args) throws Throwable {
-    try {
-      return method.invoke(target, args);
-    } catch (InvocationTargetException ex) {
-      throw ex.getCause();
-    }
-  }
-
-  private boolean matches(String sql, String[] tokens) {
-    for (var token : tokens) {
-      if (sql.contains(token)) {
-        return true;
-      }
-    }
-    return false;
+  private SqliteRepoJdbcPort failing(Connection connection, String... tokens) {
+    return new FailingJdbcPort(connection, Set.of(tokens));
   }
 
   private StoredInvoice stored(String id, long version, Invoice invoice) {
@@ -689,5 +641,41 @@ final class SqliteInvoiceRepoTest {
     ) {
       stmt.executeUpdate();
     }
+  }
+  private static final class FailingJdbcPort implements SqliteRepoJdbcPort {
+      private final Connection connection;
+      private final Set<String> tokens;
+      
+      private FailingJdbcPort(Connection connection, Set<String> tokens) {
+          this.connection = connection;
+          this.tokens = tokens;
+      }
+      
+      @Override
+      public void execute(String sql) throws SQLException {
+          if (matches(sql)) {
+              throw new SQLException("forced sql failure");
+          }
+          try (var stmt = connection.createStatement()) {
+              stmt.execute(sql);
+          }
+      }
+      
+      @Override
+      public PreparedStatement prepareStatement(String sql) throws SQLException {
+          if (matches(sql)) {
+              throw new SQLException("forced sql failure");
+          }
+          return connection.prepareStatement(sql);
+      }
+      
+      private boolean matches(String sql) {
+          for (var token : tokens) {
+              if (sql.contains(token)) {
+                  return true;
+              }
+          }
+          return false;
+      }
   }
 }

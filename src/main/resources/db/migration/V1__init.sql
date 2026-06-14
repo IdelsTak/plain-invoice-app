@@ -1,5 +1,3 @@
-PRAGMA foreign_keys = ON;
-
 CREATE TABLE IF NOT EXISTS invoices (
   id TEXT PRIMARY KEY,
   number TEXT NOT NULL UNIQUE,
