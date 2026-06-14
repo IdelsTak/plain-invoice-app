@@ -12,5 +12,6 @@ jobs:
         with:
           distribution: temurin
           java-version: '26'
+          cache: maven
       - name: Verify
-        run: mvn -B -ntp verify
+        run: mvn -B -ntp clean verify

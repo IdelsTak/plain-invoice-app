@@ -51,6 +51,11 @@ Run tests:
 mvn -B -ntp test
 ```
 
+Run the authoritative CI-equivalent gate:
+```bash
+mvn -B -ntp clean verify
+```
+
 Run the desktop app:
 ```bash
 mvn -B -ntp javafx:run
