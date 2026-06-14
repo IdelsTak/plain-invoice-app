@@ -20,9 +20,10 @@ jobs:
         with:
           distribution: temurin
           java-version: "26"
+          cache: maven
 
-      - name: Run verify
-        run: mvn -B -ntp verify
+      - name: Run clean verify
+        run: mvn -B -ntp clean verify
 
       - name: Generate JaCoCo badges
         uses: cicirello/jacoco-badge-generator@v2

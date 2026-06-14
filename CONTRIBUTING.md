@@ -22,15 +22,17 @@ Dependency status handling:
 - Maven 3.9.14
 
 ## Commands
-- Unit tests: `mvn -B -ntp test`
-- Full verify: `mvn -B -ntp verify`
+- Fast local tests: `mvn -B -ntp test`
+- Fast local verify: `mvn -B -ntp verify`
+- Authoritative CI gate: `mvn -B -ntp clean verify`
 - Run app: `mvn -B -ntp javafx:run`
 
 ## Testing policy
 - Unit tests use JUnit + Hamcrest (`*Test.java`)
 - UI integration tests use TestFX (`*IT.java`)
 - Behavior changes must include tests
-- JaCoCo coverage is enforced in `mvn verify` (line coverage minimum is build-gated)
+- JaCoCo coverage is enforced in the authoritative gate `mvn -B -ntp clean verify`
+- GitHub Actions may cache Maven dependencies via `actions/setup-java`, but CI must not reuse generated build output such as `target/`
 
 ## Code consistency rules (mandatory)
 - Use `sealed` hierarchies for closed domain variants instead of enums where variant behavior/state transitions matter.
