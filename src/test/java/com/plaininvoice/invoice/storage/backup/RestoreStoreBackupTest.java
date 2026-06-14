@@ -28,20 +28,34 @@ final class RestoreStoreBackupTest {
     }
 
     @Test
-    void restoresCompatibleArchive(@TempDir Path temp) throws Exception {
+    void restoresCompatibleArchiveData(@TempDir Path temp) throws Exception {
+        var archive = backup(temp.resolve("source"));
+        var home = target(temp.resolve("target"), "stale");
+        restore(home, archive, false);
+        assertThat(rowValue(home.database()), is("saved"));
+    }
+
+    @Test
+    void reportsCompatibleArchiveName(@TempDir Path temp) throws Exception {
         var archive = backup(temp.resolve("source"));
         var home = target(temp.resolve("target"), "stale");
         var report = restore(home, archive, false);
-        assertThat(rowValue(home.database()), is("saved"));
         assertThat(report.databaseName(), is("plain-invoice.sqlite"));
     }
 
     @Test
-    void reportsDryRunWithoutChangingStore(@TempDir Path temp) throws Exception {
+    void dryRunKeepsExistingStore(@TempDir Path temp) throws Exception {
+        var archive = backup(temp.resolve("source"));
+        var home = target(temp.resolve("target"), "stale");
+        restore(home, archive, true);
+        assertThat(rowValue(home.database()), is("stale"));
+    }
+
+    @Test
+    void dryRunReportsFlag(@TempDir Path temp) throws Exception {
         var archive = backup(temp.resolve("source"));
         var home = target(temp.resolve("target"), "stale");
         var report = restore(home, archive, true);
-        assertThat(rowValue(home.database()), is("stale"));
         assertThat(report.dryRun(), is(true));
     }
 
@@ -50,6 +64,13 @@ final class RestoreStoreBackupTest {
         var archive = rewriteMeta(backup(temp.resolve("source")).path(), Map.of("schema_version", "2"));
         var home = target(temp.resolve("target"), "stale");
         assertThrows(IllegalStateException.class, () -> restore(home, archive, false));
+    }
+
+    @Test
+    void keepsStoreWhenSchemaVersionIsIncompatible(@TempDir Path temp) throws Exception {
+        var archive = rewriteMeta(backup(temp.resolve("source")).path(), Map.of("schema_version", "2"));
+        var home = target(temp.resolve("target"), "stale");
+        failedRestore(home, archive);
         assertThat(rowValue(home.database()), is("stale"));
     }
 
@@ -58,6 +79,13 @@ final class RestoreStoreBackupTest {
         var archive = rewriteMeta(backup(temp.resolve("source")).path(), Map.of("database_sha256", "bad"));
         var home = target(temp.resolve("target"), "stale");
         assertThrows(IllegalStateException.class, () -> restore(home, archive, false));
+    }
+
+    @Test
+    void keepsStoreWhenChecksumDoesNotMatch(@TempDir Path temp) throws Exception {
+        var archive = rewriteMeta(backup(temp.resolve("source")).path(), Map.of("database_sha256", "bad"));
+        var home = target(temp.resolve("target"), "stale");
+        failedRestore(home, archive);
         assertThat(rowValue(home.database()), is("stale"));
     }
 
@@ -66,6 +94,13 @@ final class RestoreStoreBackupTest {
         var archive = withoutMeta(backup(temp.resolve("source")).path());
         var home = target(temp.resolve("target"), "stale");
         assertThrows(IllegalStateException.class, () -> restore(home, archive, false));
+    }
+
+    @Test
+    void keepsStoreWhenMetadataEntryIsMissing(@TempDir Path temp) throws Exception {
+        var archive = withoutMeta(backup(temp.resolve("source")).path());
+        var home = target(temp.resolve("target"), "stale");
+        failedRestore(home, archive);
         assertThat(rowValue(home.database()), is("stale"));
     }
 
@@ -74,6 +109,13 @@ final class RestoreStoreBackupTest {
         var archive = withoutDb(backup(temp.resolve("source")).path());
         var home = target(temp.resolve("target"), "stale");
         assertThrows(IllegalStateException.class, () -> restore(home, archive, false));
+    }
+
+    @Test
+    void keepsStoreWhenDatabaseEntryIsMissing(@TempDir Path temp) throws Exception {
+        var archive = withoutDb(backup(temp.resolve("source")).path());
+        var home = target(temp.resolve("target"), "stale");
+        failedRestore(home, archive);
         assertThat(rowValue(home.database()), is("stale"));
     }
 
@@ -82,6 +124,13 @@ final class RestoreStoreBackupTest {
         var archive = rewriteMeta(backup(temp.resolve("source")).path(), Map.of("format", "plain-invoice-backup-v2"));
         var home = target(temp.resolve("target"), "stale");
         assertThrows(IllegalStateException.class, () -> restore(home, archive, false));
+    }
+
+    @Test
+    void keepsStoreWhenFormatIsUnsupported(@TempDir Path temp) throws Exception {
+        var archive = rewriteMeta(backup(temp.resolve("source")).path(), Map.of("format", "plain-invoice-backup-v2"));
+        var home = target(temp.resolve("target"), "stale");
+        failedRestore(home, archive);
         assertThat(rowValue(home.database()), is("stale"));
     }
 
@@ -90,6 +139,13 @@ final class RestoreStoreBackupTest {
         var archive = rewriteMeta(backup(temp.resolve("source")).path(), Map.of("created_at", "nope"));
         var home = target(temp.resolve("target"), "stale");
         assertThrows(IllegalStateException.class, () -> restore(home, archive, false));
+    }
+
+    @Test
+    void keepsStoreWhenCreatedAtIsBroken(@TempDir Path temp) throws Exception {
+        var archive = rewriteMeta(backup(temp.resolve("source")).path(), Map.of("created_at", "nope"));
+        var home = target(temp.resolve("target"), "stale");
+        failedRestore(home, archive);
         assertThat(rowValue(home.database()), is("stale"));
     }
 
@@ -98,6 +154,13 @@ final class RestoreStoreBackupTest {
         var archive = rewriteMeta(backup(temp.resolve("source")).path(), Map.of("database_sha256", " "));
         var home = target(temp.resolve("target"), "stale");
         assertThrows(IllegalStateException.class, () -> restore(home, archive, false));
+    }
+
+    @Test
+    void keepsStoreWhenChecksumMetadataIsBlank(@TempDir Path temp) throws Exception {
+        var archive = rewriteMeta(backup(temp.resolve("source")).path(), Map.of("database_sha256", " "));
+        var home = target(temp.resolve("target"), "stale");
+        failedRestore(home, archive);
         assertThat(rowValue(home.database()), is("stale"));
     }
 
@@ -108,6 +171,13 @@ final class RestoreStoreBackupTest {
         var restore = new RestoreStoreBackup(_ -> "broken");
         assertThrows(IllegalStateException.class, () ->
           restore.execute(new StoreRestoreRequest(home, archive.path(), false)));
+    }
+
+    @Test
+    void keepsStoreWhenIntegrityCheckFails(@TempDir Path temp) throws Exception {
+        var archive = backup(temp.resolve("source"));
+        var home = target(temp.resolve("target"), "stale");
+        failedRestore(home, archive.path(), new RestoreStoreBackup(_ -> "broken"));
         assertThat(rowValue(home.database()), is("stale"));
     }
 
@@ -120,6 +190,15 @@ final class RestoreStoreBackupTest {
         });
         assertThrows(IllegalStateException.class, () ->
           restore.execute(new StoreRestoreRequest(home, archive.path(), false)));
+    }
+
+    @Test
+    void keepsStoreWhenIntegrityCheckErrors(@TempDir Path temp) throws Exception {
+        var archive = backup(temp.resolve("source"));
+        var home = target(temp.resolve("target"), "stale");
+        failedRestore(home, archive.path(), new RestoreStoreBackup(_ -> {
+            throw new SQLException("boom");
+        }));
         assertThat(rowValue(home.database()), is("stale"));
     }
 
@@ -128,6 +207,13 @@ final class RestoreStoreBackupTest {
         var archive = corruptDb(backup(temp.resolve("source")).path());
         var home = target(temp.resolve("target"), "stale");
         assertThrows(IllegalStateException.class, () -> restore(home, archive, false));
+    }
+
+    @Test
+    void keepsStoreWhenSnapshotIsCorrupt(@TempDir Path temp) throws Exception {
+        var archive = corruptDb(backup(temp.resolve("source")).path());
+        var home = target(temp.resolve("target"), "stale");
+        failedRestore(home, archive);
         assertThat(rowValue(home.database()), is("stale"));
     }
 
@@ -163,6 +249,19 @@ final class RestoreStoreBackupTest {
 
     private StoreRestoreReport restore(StoreHome home, Path archive, boolean dryRun) {
         return new RestoreStoreBackup().execute(new StoreRestoreRequest(home, archive, dryRun));
+    }
+
+    private void failedRestore(StoreHome home, Path archive) {
+        failedRestore(home, archive, new RestoreStoreBackup());
+    }
+
+    private void failedRestore(StoreHome home, Path archive, RestoreStoreBackup restore) {
+        try {
+            restore.execute(new StoreRestoreRequest(home, archive, false));
+        } catch (IllegalStateException ex) {
+            return;
+        }
+        throw new IllegalStateException("restore should have failed");
     }
 
     private void writeDb(Path database, String value) throws Exception {
