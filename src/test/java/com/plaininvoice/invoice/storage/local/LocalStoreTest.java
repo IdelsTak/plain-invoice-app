@@ -1,5 +1,6 @@
 package com.plaininvoice.invoice.storage.local;
 
+import com.plaininvoice.invoice.storage.backup.*;
 import com.plaininvoice.invoice.storage.sqlite.*;
 import java.lang.reflect.*;
 import java.nio.file.*;
@@ -94,6 +95,25 @@ final class LocalStoreTest {
   }
 
   @Test
+  void restoresBackup(@TempDir Path temp) throws Exception {
+    var archive = archive(temp.resolve("source"));
+    try (var store = new LocalStore(temp.resolve("target"))) {
+      store.restore(archive.path(), false);
+      assertThat(sampleValue(store.database()), is("saved"));
+    }
+  }
+
+  @Test
+  void dryRunRestoreKeepsExistingStore(@TempDir Path temp) throws Exception {
+    var archive = archive(temp.resolve("source"));
+    writeSample(temp.resolve("target").resolve("plain-invoice.sqlite"), "stale");
+    try (var store = new LocalStore(temp.resolve("target"))) {
+      store.restore(archive.path(), true);
+      assertThat(sampleValue(store.database()), is("stale"));
+    }
+  }
+
+  @Test
   void bootstrapsSchema(@TempDir Path temp) throws Exception {
     try (var store = new LocalStore(temp)) {
       store.invoices();
@@ -184,6 +204,34 @@ final class LocalStoreTest {
 
   private Instant now() {
     return Instant.parse("2026-05-24T10:15:30Z");
+  }
+
+  private StoreBackupArchive archive(Path temp) throws Exception {
+    var home = new StoreHome(temp.resolve("store"));
+    Files.createDirectories(home.directory());
+    writeSample(home.database(), "saved");
+    return new CreateStoreBackup().execute(new StoreBackupRequest(home, temp.resolve("backups"), now()));
+  }
+
+  private void writeSample(Path database, String value) throws Exception {
+    Files.createDirectories(database.getParent());
+    try (var connection = DriverManager.getConnection("jdbc:sqlite:" + database.toAbsolutePath())) {
+      try (var stmt = connection.createStatement()) {
+        stmt.execute("CREATE TABLE sample(id INTEGER PRIMARY KEY, name TEXT NOT NULL)");
+        stmt.execute("INSERT INTO sample(name) VALUES('" + value + "')");
+      }
+    }
+  }
+
+  private String sampleValue(Path database) throws Exception {
+    try (var connection = DriverManager.getConnection("jdbc:sqlite:" + database.toAbsolutePath())) {
+      try (var stmt = connection.prepareStatement("SELECT name FROM sample")) {
+        try (var rs = stmt.executeQuery()) {
+          rs.next();
+          return rs.getString(1);
+        }
+      }
+    }
   }
 
   private boolean tableExists(LocalStore store) throws Exception {

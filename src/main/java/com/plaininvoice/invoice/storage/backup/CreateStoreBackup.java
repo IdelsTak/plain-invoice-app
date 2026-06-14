@@ -2,6 +2,7 @@ package com.plaininvoice.invoice.storage.backup;
 
 import java.io.*;
 import java.nio.file.*;
+import java.security.*;
 import java.sql.*;
 import java.time.*;
 import java.time.format.*;
@@ -33,7 +34,7 @@ public final class CreateStoreBackup {
       }
     } catch (SQLException ex) {
       throw new IllegalStateException("store backup failed", ex);
-    } catch (IOException ex) {
+    } catch (Exception ex) {
       throw new IllegalStateException("store backup archive failed", ex);
     }
   }
@@ -58,20 +59,22 @@ public final class CreateStoreBackup {
     return candidate;
   }
 
-  private void zip(StoreBackupRequest request, Path copy, Path archive) throws IOException {
+  private void zip(StoreBackupRequest request, Path copy, Path archive) throws IOException, NoSuchAlgorithmException {
+    var bytes = Files.readAllBytes(copy);
     try (var out = new ZipOutputStream(Files.newOutputStream(archive))) {
-      entry(out, "metadata.properties", metadata(request));
-      entry(out, request.home().databaseName(), Files.readAllBytes(copy));
+      entry(out, "metadata.properties", metadata(request, sha256(bytes)));
+      entry(out, request.home().databaseName(), bytes);
     }
   }
 
-  private byte[] metadata(StoreBackupRequest request) {
+  private byte[] metadata(StoreBackupRequest request, String sha256) {
     return String.join(
       System.lineSeparator(),
       "format=" + FORMAT,
       "created_at=" + request.createdAt(),
       "database_name=" + request.home().databaseName(),
       "schema_version=1",
+      "database_sha256=" + sha256,
       ""
     ).getBytes(java.nio.charset.StandardCharsets.UTF_8);
   }
@@ -84,5 +87,10 @@ public final class CreateStoreBackup {
 
   private String quote(String text) {
     return "\"" + text + "\"";
+  }
+
+  private String sha256(byte[] bytes) throws NoSuchAlgorithmException {
+    var digest = MessageDigest.getInstance("SHA-256");
+    return HexFormat.of().formatHex(digest.digest(bytes));
   }
 }

@@ -73,6 +73,12 @@ final class CreateStoreBackupTest {
   }
 
   @Test
+  void recordsChecksum(@TempDir Path temp) throws Exception {
+    var archive = backup(temp);
+    assertThat(text(archive.path(), "metadata.properties"), containsString("database_sha256="));
+  }
+
+  @Test
   void copiesDatabaseRows(@TempDir Path temp) throws Exception {
     var archive = backup(temp);
     assertThat(rowCount(temp, archive.path()), is(1));

@@ -35,6 +35,11 @@ public final class LocalStore implements AutoCloseable {
         return new CreateStoreBackup().execute(new StoreBackupRequest(home, directory, createdAt));
     }
 
+    public StoreRestoreReport restore(Path archive, boolean dryRun) {
+        close();
+        return new RestoreStoreBackup().execute(new StoreRestoreRequest(home, archive, dryRun));
+    }
+
     public InvoiceRepository invoices() {
         return new SqliteInvoiceRepo(connect());
     }
